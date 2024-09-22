@@ -19,12 +19,16 @@ Widget::Widget(QWidget *parent)
     ui->setupUi(this);
 
     //创建自定义widget实例
-    m_tecplotWidget = new TecplotWidget(this);
+    //m_tecplotWidget = new TecplotWidget(this);
+    m_geometryWidget = new GeometryWidget(this);
     //在当前widget上布局
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->addWidget(m_tecplotWidget);
-
-    /******测试contour的功能******/
+    //layout->addWidget(m_tecplotWidget);
+    layout->addWidget(m_geometryWidget);
+    QPushButton* interactorButton = new QPushButton("高亮交互",this);
+    layout->addWidget(interactorButton);
+    connect(interactorButton,&QPushButton::clicked,this,&Widget::interactorButton_clicked);
+    /******测试contour的功能*****
     QPushButton* XButton = new QPushButton("Q==1000切片",this);
     QPushButton* YButton = new QPushButton("T=300,350(Y==0.03)切片",this);
     QPushButton* Xcolor = new QPushButton("x颜色映射",this);
@@ -34,27 +38,25 @@ Widget::Widget(QWidget *parent)
     layout->addWidget(YButton);
     layout->addWidget(Xcolor);
     layout->addWidget(GlyphButton);
-    layout->addWidget(QButton);
-    //数据的读入
-    TecplotReader reader(R"(D:\Project\VTK_QT\data\Tur_Merge_Field_[2000].dat)");
-    vtkMultiBlockDataSet* multiBlock=reader.readTecplot();
-
+    layout->addWidget(QButton);*/
     //设置vtktecplotwidget
-    m_tecplotWidget->SetInputData(multiBlock);
-    int a = m_tecplotWidget->GetPropertiesNumber();
+    //m_tecplotWidget->SetFileName(R"(D:\Project\VTK_QT\data\Tur_Merge_Field_[2000].dat)");
+    m_geometryWidget->SetFileName(R"(D:\Project\VTK_QT\data\f6_clean_dpwII_v2_whole_cf2 v3.step)");
+    /*int a = m_tecplotWidget->GetNumberOfProperty();
     cout <<endl<<a;
     // 连接信号槽
     connect(XButton,&QPushButton::clicked,this,&Widget::XButton_clicked);
     connect(YButton,&QPushButton::clicked,this,&Widget::YButton_clicked);
     connect(Xcolor,&QPushButton::clicked,this,&Widget::Xcolor_clicked);
     connect(GlyphButton,&QPushButton::clicked,this,&Widget::GlyphButton_clicked);
-    connect(QButton,&QPushButton::clicked,this,&Widget::QButton_clicked);
+    connect(QButton,&QPushButton::clicked,this,&Widget::QButton_clicked);*/
 }
 
 Widget::~Widget()
 {
     delete ui;
 }
+/*
 void Widget::BackgroundButton_clicked()
 {
     //渲染窗口为浅蓝色
@@ -67,13 +69,13 @@ void Widget::SolidColorButton_clicked()
     QColor green(0, 255, 0);
     m_tecplotWidget->SetSolidColor(green);
 }
-/*
+
 void Widget::XButton_clicked()
 {
     //x坐标颜色映射
     //tecplotWidget->SetColorMapVariable("p");
     tecplotWidget->SetColorMappingFlag(true);
-}*/
+}
 void Widget::CutPlaneButton_clicked()
 {
     m_tecplotWidget->SetCutPlaneWidget();
@@ -143,4 +145,8 @@ void Widget::GlyphButton_clicked()
 void Widget::QButton_clicked()
 {
     m_tecplotWidget->CalculateQCriterion("basicActor");
+}*/
+void Widget::interactorButton_clicked()
+{
+    m_geometryWidget->EnableHighlightMode();
 }

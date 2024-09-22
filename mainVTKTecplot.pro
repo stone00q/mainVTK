@@ -10,7 +10,6 @@ CONFIG += c++11
 INCLUDEPATH += D:/VTK/VTK8.2-VS2015-OCCT7.7/VTK8.2-install/include/vtk-8.2
 # INCLUDEPATH += D:/VTK/OpenCASCADE_7.7.0/install/inc
 LIBS += -L$$quote("D:/VTK/VTK8.2-VS2015-OCCT7.7/VTK8.2-install/lib/")
-LIBS += -L$$quote("D:/VTK/OpenCASCADE_7.7.0/install/win64/vc14/lib")
 CONFIG(debug, debug|release) {
 LIBS+=\
 vtkChartsCore-8.2d.lib\
@@ -138,7 +137,7 @@ vtkViewsContext2D-8.2d.lib\
 vtkViewsCore-8.2d.lib\
 vtkViewsInfovis-8.2d.lib\
 vtkViewsQt-8.2d.lib\
-vtkzlib-8.2d.lib\
+vtkzlib-8.2d.lib
 }else{
 LIBS+=\
 vtkChartsCore-8.2.lib\
@@ -266,17 +265,17 @@ vtkViewsContext2D-8.2.lib\
 vtkViewsCore-8.2.lib\
 vtkViewsInfovis-8.2.lib\
 vtkViewsQt-8.2.lib\
-vtkzlib-8.2.lib\
+vtkzlib-8.2.lib
 }
 SOURCES += \
+    GeometryWidget.cpp \
     TecplotWidget.cpp \
-    class_reader.cpp \
     main.cpp \
     widget.cpp
 
 HEADERS += \
+    GeometryWidget.h \
     TecplotWidget.h \
-    class_reader.h \
     widget.h
 
 FORMS += \
@@ -286,3 +285,9 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+SOURCES += \
+    GeometryWidget.cpp \
+    TecplotWidget.cpp \
+    main.cpp \
+    widget.cpp

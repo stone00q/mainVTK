@@ -3,6 +3,19 @@
 
 #include <QWidget>
 
+#include <string>
+#include <vector>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <unordered_map>
+#include <vtkPoints.h>
+#include <vtkFloatArray.h>
+#include <vtkIdList.h>
+#include <vtkCellType.h>
+#include <ctime>
+
 #include <vtkMultiBlockDataSet.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkPointData.h>
@@ -47,7 +60,16 @@
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 VTK_MODULE_INIT(vtkInteractionStyle);
 VTK_MODULE_INIT(vtkRenderingContextOpenGL2);
-
+class TecplotReader {
+public:
+    TecplotReader(){}
+    ~TecplotReader(){}
+    vtkMultiBlockDataSet* ReadTecplotData(const std::string& fileName);
+private:
+    // Helper functions:
+    void pointsReader(int pointId, const std::string& line, int varNum, std::vector<vtkSmartPointer<vtkFloatArray>>& zoneData, vtkPoints* thePoints);
+    void cellsReader(const std::string& cellType, const std::string& line, vtkSmartPointer<vtkUnstructuredGrid> unstructuredGrid);
+};
 class CutPlane
 {
 public:
@@ -138,8 +160,8 @@ public:
     explicit TecplotWidget(QWidget *parent = 0);
     ~TecplotWidget();
 
-    void SetInputData(vtkMultiBlockDataSet* inputData);
-    int GetPropertiesNumber();
+    void SetFileName(QString fileName);
+    int GetNumberOfProperty();
     QString GetPropertyName(int id); // !!!这个还没实现，后面需要改一下代码，让返回一个list才行。
 
     /****设置、获取渲染框背景颜色****/
@@ -215,6 +237,7 @@ private:
 
     CutPlane m_cutPlane;
     ColorMap m_colorMap;
+    TecplotReader m_reader;
 };
 
 #endif // TECPLOTWIDGET_H
