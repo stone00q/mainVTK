@@ -24,47 +24,192 @@ TecplotWidget::~TecplotWidget()
 void TecplotWidget::SetFileName(QString fileName)
 {
     this->m_multiBlock = this->m_reader.ReadTecplotData(fileName.toStdString());
-    this->m_unstructuredGrid=vtkUnstructuredGrid::SafeDownCast(this->m_multiBlock->GetBlock(0));
+    this->m_blockNum = this ->m_multiBlock->GetNumberOfBlocks();
 
-    //添加一个速度向量
-    auto calculator=vtkSmartPointer<vtkArrayCalculator>::New();
-    calculator->SetInputData(this->m_unstructuredGrid);
-    calculator->AddScalarArrayName("u");
-    calculator->AddScalarArrayName("v");
-    calculator->AddScalarArrayName("w");
-    calculator->SetResultArrayName("velocity");
-    calculator->SetFunction("u*iHat + v*jHat + w*kHat");
-    calculator->Update();
+    //将每个block作为一个actor渲染，并且以block的name来命名
+    std::string blockName = "";
+    for(int i = 0;i < this->m_blockNum;i++)
+    {
+        const char* Name = this->m_multiBlock->GetMetaData(i)->Get(vtkCompositeDataSet::NAME());
+        blockName = Name;
 
-    this->m_unstructuredGrid=calculator->GetUnstructuredGridOutput();
-    this->m_pointData = this->m_unstructuredGrid->GetPointData();
-    m_varNum = m_pointData->GetNumberOfArrays();
-    //开始basic渲染
-    auto basicMapper=vtkSmartPointer<vtkDataSetMapper>::New();
-    auto basicActor=vtkSmartPointer<vtkActor>::New();
-    m_actorsList["basicActor"]=basicActor;
-    this->m_actorsStatus["basicActor"]=true;
-    basicMapper->SetInputData(m_unstructuredGrid);
-    basicActor->SetMapper(basicMapper);
-    this->m_renderer->AddActor(basicActor);
+        auto tmpMapper=vtkSmartPointer<vtkDataSetMapper>::New();
+        auto tmpActor=vtkSmartPointer<vtkActor>::New();
+        m_actorsList[blockName]=tmpActor;
+        this->m_actorsStatus[blockName]=true;
+        tmpMapper->SetInputData(vtkUnstructuredGrid::SafeDownCast(this->m_multiBlock->GetBlock(i)));
+        tmpActor->SetMapper(tmpMapper);
+        this->m_renderer->AddActor(tmpActor);
+        blockName.clear();
+    }
     this->m_renderWindow->Render();
+
 }
-/**返回pointdata数量**/
-int TecplotWidget::GetNumberOfProperty()
+int TecplotWidget::GetNumberOfBlock()
 {
-    int num = m_unstructuredGrid->GetPointData()->GetNumberOfArrays();
+    if(this->m_multiBlock->GetNumberOfBlocks()==0)
+    {
+        QMessageBox::warning(this, "Warning", "请先打开文件");
+        return 0;
+    }
+    return this->m_multiBlock->GetNumberOfBlocks();
+}
+QStringList TecplotWidget::GetActorList()
+{
+    QStringList actorNameList;
+    for (const auto& pair : m_actorsList)
+    {
+        actorNameList << QString::fromStdString(pair.first);
+    }
+    return actorNameList;
+}
+bool TecplotWidget::ActorVisibilityOn(QString actorName)
+{
+    std::string name = actorName.toStdString();
+    if(this->m_actorsList.count(name)==0)
+    {
+        return false;
+    }
+    if(actorName.contains("Slice"))
+    {
+        this->m_sliceWigetList[name]->EnabledOn();
+    }
+    if(this->m_barsStatus.count(name)!=0){
+        if(this->m_barsStatus[name])
+        {
+            this->m_barsList[name]->VisibilityOn();
+        }
+    }
+    this->m_actorsStatus[name] = true;
+    vtkActor* objActor = this->m_actorsList[name];
+    objActor->VisibilityOn();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::ActorVisibilityOff(QString actorName)
+{
+    std::string name = actorName.toStdString();
+    if(this->m_actorsList.count(name)==0)
+    {
+        return false;
+    }
+    if(actorName.contains("Slice"))
+    {
+        this->m_sliceWigetList[name]->EnabledOff();
+    }
+    if(this->m_barsList.count(name)!=0)
+    {
+        this->m_barsList[name]->VisibilityOff();
+        this->m_barsStatus[name] = false;
+    }
+    this->m_actorsStatus[name] = false;
+    vtkActor* objActor = this->m_actorsList[name];
+    objActor->VisibilityOff();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::RemoveActor(QString actorName)
+{
+    std::string name = actorName.toStdString();
+    if(this->m_actorsList.count(name)==0)
+    {
+        return false;
+    }
+    if(this->m_barsList.count(name)!=0)
+    {
+        auto barActor = this->m_barsList[name];
+        this->m_renderer->RemoveActor(barActor);
+        this->m_barsList.erase(name);
+        this->m_barsStatus.erase(name);
+    }
+    if(this->m_lutsList.count(name)!=0)
+    {
+        this->m_lutsList.erase(name);
+    }
+    if(actorName.contains("Slice"))
+    {
+        this->m_cutterList.erase(name);
+        this->m_sliceWigetList.erase(name);
+        this->m_slicePlaneRepList.erase(name);
+        this->m_sliceWidgetNum--;
+    }else if(actorName.contains("StreamTracer"))
+    {
+        this->m_streamTraceNum--;
+        this->m_streamTraceList.erase(name);
+        this->m_streamTraceMaskPointsList.erase(name);
+    }else if(actorName.contains("Glyph"))
+    {
+        vtkActor* objActor = this->m_actorsList[name];
+        this->m_renderer->RemoveActor(objActor);
+        this->m_actorsList.erase(name);
+        this->m_actorsStatus.erase(name);
+        this->m_glyphNum--;
+        Glyph* tmp = this->m_glyphsList[name];
+        delete tmp;
+        this->m_glyphsList.erase(name);
+        this->m_renderWindow->Render();
+        return true;
+    }else if(actorName.contains("Contour"))
+    {
+        vtkActor* objActor = this->m_actorsList[name];
+        this->m_renderer->RemoveActor(objActor);
+        this->m_actorsList.erase(name);
+        this->m_actorsStatus.erase(name);
+        this->m_contourNum--;
+        Contour* tmp = this->m_contoursList[name];
+        delete tmp;
+        this->m_contoursList.erase(name);
+        this->m_renderWindow->Render();
+        return true;
+    }
+
+    vtkActor* objActor = this->m_actorsList[name];
+    this->m_renderer->RemoveActor(objActor);
+    this->m_actorsList.erase(name);
+    this->m_actorsStatus.erase(name);
+    this->m_renderWindow->Render();
+    return true;
+}
+int TecplotWidget::GetNumberOfProperty(QString actorName)
+{
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+    vtkMapper* mapper= objActor->GetMapper();
+    vtkDataSet* dataSet = vtkDataSet::SafeDownCast(mapper->GetInput());
+    int num = dataSet->GetPointData()->GetNumberOfArrays();
     for(int i = 0;i < num ;i++)
     {
-        cout <<endl <<m_unstructuredGrid->GetPointData()->GetArrayName(i);
+        cout <<endl <<dataSet->GetPointData()->GetArrayName(i);
     }
     return num;
+}
+QStringList TecplotWidget::GetPropertyList(QString actorName)
+{
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+    vtkMapper* mapper= objActor->GetMapper();
+    vtkDataSet* dataSet = vtkDataSet::SafeDownCast(mapper->GetInput());
+
+    QStringList propertyList;
+    int num = dataSet->GetPointData()->GetNumberOfArrays();
+    for(int i = 0;i < num;i++)
+    {
+        propertyList<<dataSet->GetPointData()->GetArrayName(i);
+    }
+    return propertyList;
+}
+QString TecplotWidget::GetPropertyName(QString actorName,int id)
+{//??没测试return啊
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+    vtkMapper* mapper= objActor->GetMapper();
+    vtkDataSet* dataSet = vtkDataSet::SafeDownCast(mapper->GetInput());
+    auto propertyName = dataSet->GetPointData()->GetArrayName(id);
+    //QString name(propertyName);
+    return QString::fromUtf8(propertyName);
 }
 void TecplotWidget::SetBackgroundColor(QColor color)
 {
     int r=color.red();
     int g=color.green();
     int b=color.blue();
-
     double normalizedR = r / 255.0;
     double normalizedG = g / 255.0;
     double normalizedB = b / 255.0;
@@ -81,79 +226,169 @@ QColor TecplotWidget::GetBackgroundColor()
     int b = static_cast<int>(rgb[2] * 255);
     return QColor(r, g, b);
 }
-bool TecplotWidget::SetColorMapObject(QString name)
+void TecplotWidget::SetSolidColor(QString actorName,QColor color)
 {
-    std::string objName = name.toStdString();
-    return m_colorMap.SetColorMapObject(objName,this->m_actorsList);
-}
-void TecplotWidget::SetSolidColor(QColor RGBA)
-{
-    m_colorMap.SetSolidColor(this->m_barsList, RGBA);
-    this->m_renderer->Render();
-}
-bool TecplotWidget::SetColorMapVariable(QString name)
-{
-    std::string varName = name.toStdString();
-    bool flag = m_colorMap.SetColorMapVariable(varName,this->m_lutsList,this->m_barsList,this->m_renderer);
-    this->m_renderer->Render();
-    return flag;
-}
-void TecplotWidget::SetCutPlaneWidget(bool flag)
-{
-    //所有cut相关操作都需要先确认是否设置了输入
-    bool InputdataStatus= this->m_cutPlane.GetInputDataStatus();
-    if(!InputdataStatus)
-    {
-        this->m_cutPlane.SetInputData(this->m_unstructuredGrid,this->m_qvtkInteractor,this->m_renderer);
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+    if(this->m_barsList.count(actorName.toStdString())!=0)
+    {//如果之前执行过颜色映射，需要关闭颜色映射、设置bar不可见
+        objActor->GetMapper()->ScalarVisibilityOff();
+        this->m_barsList[actorName.toStdString()]->VisibilityOff();
+        this->m_barsStatus[actorName.toStdString()]= false;
     }
-    if(flag)
-    {
-        this->m_cutPlane.SetCutPlaneWidget();
-    }else{
-        this->m_cutPlane.CloseCutPlaneWidget();
-    }
-    this->m_renderer->Render();
+    int r=color.red();
+    int g=color.green();
+    int b=color.blue();
+    double normalizedR = r / 255.0;
+    double normalizedG = g / 255.0;
+    double normalizedB = b / 255.0;
+    objActor->GetProperty()->SetColor(normalizedR,normalizedG,normalizedB);
+    m_renderWindow->Render();
 }
-QString TecplotWidget::AddCutPlane(QString name)
+QColor TecplotWidget::GetSolidColor(QString actorName)
 {
-    if(!this->m_cutPlane.GetInputDataStatus())
-    {
-        this->m_cutPlane.SetInputData(this->m_unstructuredGrid,this->m_qvtkInteractor,this->m_renderer);
-    }
-    std::string tmpName=name.toStdString();
-    this->m_cutPlane.AddCutPlane(tmpName,m_actorsList,m_actorsStatus);
-    this->m_renderer->Render();
-    return name.fromStdString(tmpName);
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+    double* rgb=objActor->GetProperty()->GetColor();
+    return QColor::fromRgbF(rgb[0],rgb[1],rgb[2]);
 }
-bool TecplotWidget::SetCutPlaneVisible(QString name, bool flag)
+bool TecplotWidget::SetColorMapOn(QString actorName,QString propertyName)
 {
-    std::string tmpName = name.toStdString();
-    if(m_actorsList.count(tmpName) == 0) return false;
-    vtkActor* actor = m_actorsList[tmpName];  //?不new真的可以用吗
-    actor->SetVisibility(flag);
-    m_actorsStatus[tmpName] = flag;
-    this->m_renderer->Render();
+    std::string objName = actorName.toStdString();
+    std::string objVar = propertyName.toStdString();
+    vtkActor* objActor = this->m_actorsList[objName];
+    vtkMapper* mapper= objActor->GetMapper();
+    vtkDataSet* dataSet = vtkDataSet::SafeDownCast(mapper->GetInput());
+    //如果采用默认参数，则必须之前打开过颜色映射
+    if(this->m_barsList.count(objName)==0)
+    {
+        if(propertyName=="") return false;
+        //该actor第一次打开颜色映射，需要新建lut
+        vtkSmartPointer<vtkLookupTable> lut = vtkSmartPointer<vtkLookupTable>::New();
+        auto barActor = vtkSmartPointer<vtkScalarBarActor>::New();
+        this->m_lutsList[objName] = lut;
+        this->m_barsList[objName] = barActor;
+        this->m_renderer->AddActor2D(barActor);
+    }
+    auto lut = m_lutsList[objName];
+    auto barActor = m_barsList[objName];
+    this->m_barsStatus[objName] = true;
+    if(propertyName=="")
+    {
+        mapper->ScalarVisibilityOn();
+        barActor->VisibilityOn();
+        this->m_renderWindow->Render();
+        return true;
+    }
+    // 设置 Active Scalars
+    int selectedId = dataSet->GetPointData()->SetActiveScalars(objVar.c_str());
+    vtkDataArray* scalar = dataSet->GetPointData()->GetArray(selectedId);
+    lut->SetTableRange(scalar->GetRange());
+    lut->SetNumberOfColors(256);
+    lut->Build();
+    barActor->SetLookupTable(lut);
+    mapper->SetScalarRange(scalar->GetRange());
+    mapper->SetLookupTable(lut);
+
+    mapper->ScalarVisibilityOn();
+    barActor->VisibilityOn();
+    m_renderWindow->Render();
     return true;
 }
-bool TecplotWidget::DeleteCutPlane(QString name)
+bool TecplotWidget::SetColorMapOff(QString actorName)
 {
-    std::string tmpName = name.toStdString();
-    if(m_actorsList.count(tmpName) == 0) return false;
-    vtkActor* actor = m_actorsList[tmpName];
-    this->m_renderer->RemoveActor(actor);
-    this->m_actorsList.erase(tmpName);
-    this->m_actorsStatus.erase(tmpName);
-    this->m_renderer->Render();
+    if(this->m_actorsList.count(actorName.toStdString())==0)
+        return false;
+    vtkActor* objActor = this->m_actorsList[actorName.toStdString()];
+
+    if(this->m_barsList.count(actorName.toStdString())!=0)
+    {//如果之前执行过颜色映射，需要关闭颜色映射、设置bar不可见
+        objActor->GetMapper()->ScalarVisibilityOff();
+        this->m_barsList[actorName.toStdString()]->VisibilityOff();
+        this->m_barsStatus[actorName.toStdString()] = false;
+    }
+    m_renderWindow->Render();
     return true;
 }
-QString TecplotWidget::AddContour(QString contourDerived)
+
+QString TecplotWidget::AddSliceWidget(QString derivedActorName)
+{
+    this->m_sliceWidgetNum++;
+    std::string name = "Slice"+std::to_string(m_sliceWidgetNum);
+    vtkActor* objActor = this->m_actorsList[derivedActorName.toStdString()];
+    vtkDataSet* data = vtkDataSet::SafeDownCast(objActor->GetMapper()->GetInput());
+
+    vtkSmartPointer<vtkImplicitPlaneWidget2> cutPlaneWidget = vtkSmartPointer<vtkImplicitPlaneWidget2>::New();
+    this->m_sliceWigetList[name] = cutPlaneWidget;
+    vtkSmartPointer<vtkImplicitPlaneRepresentation> cutPlaneRep = vtkSmartPointer<vtkImplicitPlaneRepresentation>::New();
+    this->m_slicePlaneRepList[name] = cutPlaneRep;
+    vtkSmartPointer<vtkCutter> cutter = vtkSmartPointer<vtkCutter>::New();
+    this->m_cutterList[name] = cutter;
+    cutter->SetInputData(data);
+
+    vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    vtkSmartPointer<vtkActor> cutActor = vtkSmartPointer<vtkActor>::New();
+    cutActor->SetMapper(mapper);
+    this->m_actorsList[name] = cutActor;
+    this->m_actorsStatus[name] = true;
+    this->m_renderer->AddActor(cutActor);
+
+    cutPlaneRep->SetPlaceFactor(1.0);
+    cutPlaneRep->PlaceWidget(data->GetBounds());
+    cutPlaneRep->SetEdgeColor(1.0,0.0,0.0);
+    cutPlaneWidget->SetInteractor(this->m_qvtkInteractor);
+    cutPlaneWidget->SetRepresentation(cutPlaneRep);
+    cutPlaneWidget->On();
+    return QString::fromStdString(name);
+}
+bool TecplotWidget::Slice(QString sliceWidgetName)
+{
+    std::string name = sliceWidgetName.toStdString();
+    if(this->m_sliceWigetList.count(name)==0)
+        return false;
+    vtkImplicitPlaneRepresentation* rep = this->m_slicePlaneRepList[name];
+    vtkCutter* cutter = this->m_cutterList[name];
+    vtkActor* actor = this->m_actorsList[name];
+
+    vtkSmartPointer<vtkPlane> cutPlane = vtkSmartPointer<vtkPlane>::New();
+    rep->GetPlane(cutPlane);
+    cutter->SetCutFunction(cutPlane);
+    cutter->Update();
+    actor->GetMapper()->SetInputConnection(cutter->GetOutputPort());
+    this->m_renderWindow->Render();
+    return true;
+}
+QVector3D TecplotWidget::GetSliceOrigin(QString sliceWidgetName)
+{
+    std::string name = sliceWidgetName.toStdString();
+    if(this->m_sliceWigetList.count(name)==0)
+        std::cerr<<"error";
+    vtkImplicitPlaneRepresentation* rep = this->m_slicePlaneRepList[name];
+    double origin[3];
+    rep->GetNormal(origin);
+
+    QVector3D sliceNormal(static_cast<float>(origin[0]),static_cast<float>(origin[1]),static_cast<float>(origin[2]));
+    return sliceNormal;
+}
+QVector3D TecplotWidget::GetSliceNormal(QString sliceWidgetName)
+{
+    std::string name = sliceWidgetName.toStdString();
+    if(this->m_sliceWigetList.count(name)==0)
+        std::cerr<<"error";
+    vtkImplicitPlaneRepresentation* rep = this->m_slicePlaneRepList[name];
+    double normal[3];
+    rep->GetNormal(normal);
+
+    QVector3D sliceNormal(static_cast<float>(normal[0]),static_cast<float>(normal[1]),static_cast<float>(normal[2]));
+    return sliceNormal;
+}
+
+QString TecplotWidget::AddContour(QString contourDerivedActor)
 {
     //默认命名方式,此时只是完成了contour的搭建和管理，但是并未设置某个contour的具体值
     this->m_contourNum++;
     std::string contourName = "Contour" + std::to_string(this->m_contourNum);
     Contour* contour = new Contour();
     this->m_contoursList[contourName] = contour; //一个名字contourname对应一个vtkcontour指针去管理
-    std::string derivedName = contourDerived.toStdString();
+    std::string derivedName = contourDerivedActor.toStdString();
     contour->Initialize(contourName,derivedName,this->m_actorsList,this->m_renderer);
     //此时，actorslist里添加了这个contourname对应的actor
     this->m_actorsStatus[contourName] = true;
@@ -185,7 +420,7 @@ bool TecplotWidget::RemoveEntry(QString contourName, int entryId)
     bool flag = contourptr->RemoveEntry(entryId);
     return flag;
 }
-void TecplotWidget::ShowContour(QString contourName)
+/*void TecplotWidget::ShowContour(QString contourName)
 {
     //注意apply之后，默认会关闭其他所有的actor显示
     for(auto& object:this->m_actorsList)
@@ -197,7 +432,7 @@ void TecplotWidget::ShowContour(QString contourName)
         }
     }
     this->m_renderer->Render();
-}
+}*/
 /****矢量图形化****/
 QString TecplotWidget::AddGlyph(QString glyphDerived)
 {
@@ -249,10 +484,7 @@ void TecplotWidget::SetGlyphPointsNumber(QString glyphName,int pointsNumber)
     glyphptr->SetGlyphPointsNumber(pointsNumber);
 
 }
-void TecplotWidget::ShowGlyph(QString glyphName)
-{
-     this->m_renderer->Render();
-}
+
 void TecplotWidget::CalculateQCriterion(QString actorName)
 {
     //只进行了计算并将Q值设置为活动标量，如果要绘制涡结构，需要在获得Q值后去contour
@@ -285,6 +517,152 @@ void TecplotWidget::CalculateQCriterion(QString actorName)
     data->GetPointData()->AddArray(QCriterion);
     data->GetPointData()->SetActiveScalars("QCriterion");
 }
+QString TecplotWidget::AddStreamTracer(QString derivedActor)
+{
+    std::string name = "StreamTracer"+std::to_string(this->m_streamTraceNum);
+    vtkActor* objActor = this->m_actorsList[derivedActor.toStdString()];
+    vtkPolyData* data = vtkPolyData::SafeDownCast(objActor->GetMapper()->GetInput());
+    if(data==nullptr) cout<<"streamtracer data is nullptr"<<endl;
+    vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
+    //polyData->DeepCopy(data);
+    vtkSmartPointer<vtkPolyDataNormals> normalsFilter = vtkSmartPointer<vtkPolyDataNormals>::New();
+    normalsFilter->SetInputData(data);
+    normalsFilter->ComputePointNormalsOn();
+    normalsFilter->ConsistencyOn();
+    normalsFilter->SplittingOff();  // 禁止切割几何
+    normalsFilter->NonManifoldTraversalOff();  // 关闭非流形拓扑处理
+    normalsFilter->Update();
+    auto normals = normalsFilter->GetOutput()->GetPointData()->GetNormals();
+    //取出速度，做速度投影
+    int pointNum = data->GetNumberOfPoints();
+    vtkDataArray* velocityArray;
+    if(data->GetPointData()->HasArray("vel"))
+    {
+        velocityArray = data->GetPointData()->GetArray("vel");
+    }else
+    {
+        velocityArray = data->GetPointData()->GetArray("velocity");
+    }
+    auto projectedVelocity = vtkSmartPointer<vtkDoubleArray>::New();/*设置矢量*/
+    projectedVelocity->SetNumberOfComponents(3);
+    projectedVelocity->SetNumberOfTuples(pointNum);
+    projectedVelocity->SetName("projectedVelocity");
+    for (vtkIdType i = 0; i < pointNum; ++i)
+    {
+        double velocity[3];
+        double normal[3];
+        double projected[3];
+        // 获取当前点的速度和法向量
+        velocityArray->GetTuple(i, velocity);
+        normals->GetTuple(i, normal);
+        double dotProduct = vtkMath::Dot(velocity, normal);
+        for (int j = 0; j < 3; ++j) {
+            projected[j] = velocity[j] - dotProduct * normal[j];
+            cout << projected[j] << " ";
+        }
+        cout << endl;
+        // 将投影结果存储在数组中
+        projectedVelocity->SetTuple(i, projected);
+    }
+    data->GetPointData()->AddArray(projectedVelocity);
+    data->GetPointData()->SetActiveVectors("projectedVelocity");
+    vtkSmartPointer<vtkMaskPoints> maskPoints = vtkSmartPointer<vtkMaskPoints>::New();
+    this->m_streamTraceMaskPointsList[name] =maskPoints;
+    maskPoints->SetInputData(polyData);
+    maskPoints->SetOnRatio(1000); // Select every 10th point
+    maskPoints->RandomModeOn(); // Enable random selection
+    maskPoints->SetMaximumNumberOfPoints(100); // Set maximum number of seed points
+    maskPoints->Update();
+    vtkSmartPointer<vtkStreamTracer> streamTracer = vtkSmartPointer<vtkStreamTracer>::New();
+    this->m_streamTraceList[name]=streamTracer;
+    streamTracer->SetInputData(polyData); // 使用计算过的 PolyData 作为输入
+    streamTracer->SetSourceConnection(maskPoints->GetOutputPort());
+    streamTracer->SetIntegrationDirectionToBoth(); // 设置流线的方向
+    streamTracer->SetMaximumPropagation(100); // 设置流线的最大长度
+    streamTracer->SetIntegrator(vtkSmartPointer<vtkRungeKutta4>::New());
+    streamTracer->SetComputeVorticity(true); // 计算旋度
+    // 映射流线到图形管道
+    vtkSmartPointer<vtkPolyDataMapper> streamlineMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    streamlineMapper->SetInputConnection(streamTracer->GetOutputPort());
+
+    vtkSmartPointer<vtkActor> streamlineActor = vtkSmartPointer<vtkActor>::New();
+    streamlineActor->SetMapper(streamlineMapper);
+    this->m_renderer->AddActor(streamlineActor);
+    this->m_actorsList[name]= streamlineActor;
+    this->m_actorsStatus[name]=true;
+    this->m_renderWindow->Render();
+    return QString::fromStdString(name);
+}
+bool TecplotWidget::SetStreamTracerRatio(QString streamTraceActor,int pointRatio,int maxPointNum)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    vtkMaskPoints* maskPoints = this->m_streamTraceMaskPointsList[name];
+    maskPoints->SetOnRatio(pointRatio);
+    maskPoints->SetMaximumNumberOfPoints(maxPointNum);
+    maskPoints->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::SetStreamTracerDiretion(QString streamTraceActor,int flag)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    vtkStreamTracer* tracer = this->m_streamTraceList[name];
+    switch(flag)
+    {
+    case -1:
+            tracer->SetIntegrationDirectionToBackward();
+        break;
+    case 0:
+        tracer->SetIntegrationDirectionToBoth();
+        break;
+    case 1:
+        tracer->SetIntegrationDirectionToForward();
+        break;
+    default:
+        return false;
+    }
+    tracer->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::SetStreamTracerMaximumPropagation(QString streamTraceActor,double maxPropagation)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    vtkStreamTracer* tracer = this->m_streamTraceList[name];
+    tracer->SetMaximumPropagation(maxPropagation);
+    tracer->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::SetStreamTracerMaximumIntegrationStep(QString streamTraceActor,double maxIntegrationStep)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    vtkStreamTracer* tracer = this->m_streamTraceList[name];
+    tracer->SetMaximumIntegrationStep(maxIntegrationStep);
+    tracer->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::SetStreamTracerIntegrationStepUnit(QString streamTraceActor,int unit)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    if(unit!=1&&unit!=2) return false;
+    vtkStreamTracer* tracer = this->m_streamTraceList[name];
+    tracer->SetIntegrationStepUnit(unit);
+    tracer->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
 /***************************************************************************
  ***************************************************************************
  ***************************************************************************
@@ -295,6 +673,10 @@ void TecplotWidget::CalculateQCriterion(QString actorName)
 bool CutPlane::GetInputDataStatus()
 {
     return this->dataStatus;
+}
+void CutPlane::AddCutPlaneWiget(std::string derivedActorName,std::map<std::string,vtkActor*>& actorsList,QVTKInteractor* qvtkInteractor,vtkRenderer* renderer)
+{
+
 }
 void CutPlane::SetInputData(vtkUnstructuredGrid *inputData, QVTKInteractor *qvtkInteractor, vtkRenderer *renderer)
 {
@@ -452,6 +834,12 @@ void Contour::Initialize(std::string contourName, std::string derivedName, std::
 
     vtkActor* derivedActor = actorsList[derivedName];
     this->m_data = vtkDataSet::SafeDownCast(derivedActor->GetMapper()->GetInput());//filter的输入
+    cout<<"contour propertylist:";
+    for(int i =0;i<this->m_data->GetPointData()->GetNumberOfArrays();i++)
+    {
+
+        cout<<this->m_data->GetPointData()->GetArrayName(i)<<" ";
+    }
     this->m_contourFilter->SetInputData(this->m_data);
     //filter连接mapper、actor
     vtkSmartPointer<vtkPolyDataMapper> contourMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -464,11 +852,13 @@ void Contour::Initialize(std::string contourName, std::string derivedName, std::
 double* Contour::SetActiveProperty(std::string propertyName)
 {
     // 设置activescalar
+    this->propertyStatus=true;
     int scalarId = this->m_data->GetPointData()->SetActiveScalars(propertyName.c_str());
     return this->m_data->GetPointData()->GetArray(scalarId)->GetRange();
 }
 int Contour::AddEntry(double value)
 {
+    if(!propertyStatus) return -1;
     this->m_contourFilter->SetValue(this->m_valueNum,value);
     this->m_valueNum++;//指向下一个空的entry位置
     return this->m_valueNum-1;//id从0开始
@@ -807,25 +1197,31 @@ vtkMultiBlockDataSet* TecplotReader::ReadTecplotData(const std::string &fileName
         auto ug = vtkSmartPointer<vtkUnstructuredGrid>::New();
         ug->SetPoints(thePoints);
 
-
         if (zoneNum == 1) {
+            bool hasVelocity = false;
             for (auto& data : zoneData) {
+                if(strcmp(data->GetName(), "vel") == 0 || strcmp(data->GetName(), "velocity") == 0)
+                    hasVelocity = true;
                 ug->GetPointData()->AddArray(data);
             }
-            auto calculator = vtkSmartPointer<vtkArrayCalculator>::New();
-            calculator->SetInputData(ug);
-            calculator->AddScalarArrayName("u");
-            calculator->AddScalarArrayName("v");
-            calculator->AddScalarArrayName("w");
-            calculator->SetResultArrayName("velocity");
-            calculator->SetFunction("u*iHat + v*jHat + w*kHat");
-            calculator->Update();
-
-            ug = calculator->GetUnstructuredGridOutput();
+            if(!hasVelocity)
+            {
+                auto calculator=vtkSmartPointer<vtkArrayCalculator>::New();
+                //如果没有velocity属性，就进行添加
+                calculator->SetInputData(ug);
+                calculator->AddScalarArrayName("u");
+                calculator->AddScalarArrayName("v");
+                calculator->AddScalarArrayName("w");
+                calculator->SetResultArrayName("velocity");
+                calculator->SetFunction("u*iHat + v*jHat + w*kHat");
+                calculator->Update();
+                vtkDataArray* velocityArray = calculator->GetUnstructuredGridOutput()->GetPointData()->GetArray("velocity");
+                ug->GetPointData()->AddArray(velocityArray);
+            }
             sharedPointData = ug->GetPointData();
         }
         else {
-            ug->GetPointData()->ShallowCopy(sharedPointData);
+            ug->GetPointData()->DeepCopy(sharedPointData);
         }
 
         int zoneId = zoneNum - 1;
@@ -837,10 +1233,11 @@ vtkMultiBlockDataSet* TecplotReader::ReadTecplotData(const std::string &fileName
             cellsReader(zoneCellType[zoneId], line, ug);
         }
         multiBlock->SetBlock(zoneId, ug);
+        multiBlock->GetMetaData(zoneId)->Set(vtkCompositeDataSet::NAME(), zoneTitle[zoneId]);
     }
 
     clock_t end_time = clock();
-    std::cout << "" << (end_time - start_time) / (double)CLOCKS_PER_SEC << "s" << std::endl;
+    //std::cout << "" << (end_time - start_time) / (double)CLOCKS_PER_SEC << "s" << std::endl;
 
     return multiBlock;
 }

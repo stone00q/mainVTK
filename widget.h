@@ -3,8 +3,8 @@
 
 #include <QWidget>
 #include <QProcess>
+#include <QDebug>
 #include "TecplotWidget.h"
-#include "GeometryWidget.h"
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
@@ -17,12 +17,10 @@ public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
 private slots:
-    /*void BackgroundButton_clicked();
+    void BackgroundButton_clicked();
     void SolidColorButton_clicked();
     //void XButton_clicked();
-    void CutPlaneButton_clicked();
-    void ColseCutWidget_clicked();
-    void CutButton_clicked();
+
 
     void basicButton1_clicked();
     void basicButton2_clicked();
@@ -34,11 +32,9 @@ private slots:
     void Xcolor_clicked();
 
     void GlyphButton_clicked();
-    void QButton_clicked();*/
-    void interactorButton_clicked();
+    void QButton_clicked();
 private:
     Ui::Widget *ui;
-    //TecplotWidget* m_tecplotWidget;
-    GeometryWidget* m_geometryWidget;
+    TecplotWidget* m_tecplotWidget;
 };
 #endif // WIDGET_H

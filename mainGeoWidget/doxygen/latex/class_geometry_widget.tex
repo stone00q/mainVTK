@@ -1,0 +1,125 @@
+\doxysection{Geometry\+Widget Class Reference}
+\hypertarget{class_geometry_widget}{}\label{class_geometry_widget}\index{GeometryWidget@{GeometryWidget}}
+
+
+stp、step和iges文件的读入显示  
+
+
+
+
+{\ttfamily \#include $<$Geometry\+Widget.\+h$>$}
+
+Inheritance diagram for Geometry\+Widget\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{class_geometry_widget}
+\end{center}
+\end{figure}
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{class_geometry_widget_a1cbacf399ba9a91ea75ab64268788a43}\label{class_geometry_widget_a1cbacf399ba9a91ea75ab64268788a43} 
+{\bfseries Geometry\+Widget} (QWidget \texorpdfstring{$\ast$}{*}parent=0)
+\item 
+void \mbox{\hyperlink{class_geometry_widget_a614972d6f6718d1d24d231575a79f573}{Set\+Input\+Data}} (QString file\+Name, double linear\+Deflection=0.\+01, double angular\+Deflection=0.\+05)
+\begin{DoxyCompactList}\small\item\em 读取指定路径的数据并显示 \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{class_geometry_widget_a22d4b0dbc084be9891d6033243ee90a6}{Enable\+Highlight\+Mode}} ()
+\begin{DoxyCompactList}\small\item\em 开启高亮交互 \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{class_geometry_widget_a032dfb16b22c4d9deacf7c0e80d3ca7a}{Set\+Color\+Map\+Visibility}} (bool flag=true, QString prop\+Name="{}Surf\+ID"{})
+\begin{DoxyCompactList}\small\item\em Set\+Color\+Map\+Visibility，是否进行面id颜色映射 \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\Hypertarget{class_geometry_widget_a9e96562adc74f161095cafb14b9686c7}\label{class_geometry_widget_a9e96562adc74f161095cafb14b9686c7} 
+vtk\+Smart\+Pointer$<$ vtk\+OCCTReader $>$ {\bfseries geo\+Reader}
+\item 
+\Hypertarget{class_geometry_widget_aa12de2a1485f65638114aed12f787704}\label{class_geometry_widget_aa12de2a1485f65638114aed12f787704} 
+vtk\+Smart\+Pointer$<$ vtk\+Poly\+Data $>$ {\bfseries poly\+Data}
+\item 
+\Hypertarget{class_geometry_widget_a40e02182cd68e10a77ed42b4c560df33}\label{class_geometry_widget_a40e02182cd68e10a77ed42b4c560df33} 
+vtk\+Smart\+Pointer$<$ vtk\+Poly\+Data\+Mapper $>$ {\bfseries mapper}
+\item 
+\Hypertarget{class_geometry_widget_a4501d3e07473c9a29e1b55abf28ca696}\label{class_geometry_widget_a4501d3e07473c9a29e1b55abf28ca696} 
+vtk\+Smart\+Pointer$<$ vtk\+Lookup\+Table $>$ {\bfseries lut}
+\item 
+\Hypertarget{class_geometry_widget_a8bde0e93e37cb35a67cd89d385f9a8fc}\label{class_geometry_widget_a8bde0e93e37cb35a67cd89d385f9a8fc} 
+vtk\+Smart\+Pointer$<$ vtk\+Actor $>$ {\bfseries actor}
+\item 
+\Hypertarget{class_geometry_widget_a1fb87a3a0495c10927a353b86ba10bbd}\label{class_geometry_widget_a1fb87a3a0495c10927a353b86ba10bbd} 
+vtk\+Smart\+Pointer$<$ vtk\+Renderer $>$ {\bfseries renderer}
+\item 
+\Hypertarget{class_geometry_widget_af74bbe9153ae09cc8847875a62cba2fc}\label{class_geometry_widget_af74bbe9153ae09cc8847875a62cba2fc} 
+vtk\+Smart\+Pointer$<$ vtk\+Generic\+Open\+GLRender\+Window $>$ {\bfseries render\+Window}
+\item 
+\Hypertarget{class_geometry_widget_af39f078a64dc0c890865ec412463976d}\label{class_geometry_widget_af39f078a64dc0c890865ec412463976d} 
+vtk\+Smart\+Pointer$<$ QVTKInteractor $>$ {\bfseries qvtk\+Interactor}
+\item 
+\Hypertarget{class_geometry_widget_ae4c80e11d06e7a217461e7370fd9993b}\label{class_geometry_widget_ae4c80e11d06e7a217461e7370fd9993b} 
+vtk\+Smart\+Pointer$<$ \mbox{\hyperlink{class_highlight_interactor_style}{Highlight\+Interactor\+Style}} $>$ {\bfseries highlight\+Style}
+\item 
+\Hypertarget{class_geometry_widget_add2dd5958c3af287061768f454c5a8c0}\label{class_geometry_widget_add2dd5958c3af287061768f454c5a8c0} 
+vtk\+Smart\+Pointer$<$ vtk\+Cell\+Picker $>$ {\bfseries cell\+Picker}
+\item 
+\Hypertarget{class_geometry_widget_adcc6346bcdeaef1c5bc0936a8cd8fe8a}\label{class_geometry_widget_adcc6346bcdeaef1c5bc0936a8cd8fe8a} 
+vtk\+Smart\+Pointer$<$ vtk\+Interactor\+Style\+Trackball\+Camera $>$ {\bfseries default\+Style}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+stp、step和iges文件的读入显示 
+
+能够读取stp、step、iges数据并显示，可以开启或关闭根据所在面\+ID进行的颜色映射，能够鼠标左键选中面高亮显示 
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{class_geometry_widget_a22d4b0dbc084be9891d6033243ee90a6}\index{GeometryWidget@{GeometryWidget}!EnableHighlightMode@{EnableHighlightMode}}
+\index{EnableHighlightMode@{EnableHighlightMode}!GeometryWidget@{GeometryWidget}}
+\doxysubsubsection{\texorpdfstring{EnableHighlightMode()}{EnableHighlightMode()}}
+{\footnotesize\ttfamily \label{class_geometry_widget_a22d4b0dbc084be9891d6033243ee90a6} 
+void Geometry\+Widget\+::\+Enable\+Highlight\+Mode (\begin{DoxyParamCaption}{}{}\end{DoxyParamCaption})}
+
+
+
+开启高亮交互 
+
+无默认参数 交互方式为：鼠标左键选中高亮，"{}esc"{}键退出该高亮交互方式 \Hypertarget{class_geometry_widget_a032dfb16b22c4d9deacf7c0e80d3ca7a}\index{GeometryWidget@{GeometryWidget}!SetColorMapVisibility@{SetColorMapVisibility}}
+\index{SetColorMapVisibility@{SetColorMapVisibility}!GeometryWidget@{GeometryWidget}}
+\doxysubsubsection{\texorpdfstring{SetColorMapVisibility()}{SetColorMapVisibility()}}
+{\footnotesize\ttfamily \label{class_geometry_widget_a032dfb16b22c4d9deacf7c0e80d3ca7a} 
+void Geometry\+Widget\+::\+Set\+Color\+Map\+Visibility (\begin{DoxyParamCaption}\item[{bool}]{flag}{ = {\ttfamily true}, }\item[{QString}]{prop\+Name}{ = {\ttfamily "{}SurfID"{}}}\end{DoxyParamCaption})}
+
+
+
+Set\+Color\+Map\+Visibility，是否进行面id颜色映射 
+
+
+\begin{DoxyParams}{Parameters}
+{\em bool} & flag默认是true，进行颜色映射，当设定为false时，关闭面\+ID颜色映射 \\
+\hline
+{\em QString} & prop\+Name，进行颜色映射的属性，默认是\+Surf\+ID，即每个cell的面\+ID \\
+\hline
+\end{DoxyParams}
+\Hypertarget{class_geometry_widget_a614972d6f6718d1d24d231575a79f573}\index{GeometryWidget@{GeometryWidget}!SetInputData@{SetInputData}}
+\index{SetInputData@{SetInputData}!GeometryWidget@{GeometryWidget}}
+\doxysubsubsection{\texorpdfstring{SetInputData()}{SetInputData()}}
+{\footnotesize\ttfamily \label{class_geometry_widget_a614972d6f6718d1d24d231575a79f573} 
+void Geometry\+Widget\+::\+Set\+Input\+Data (\begin{DoxyParamCaption}\item[{QString}]{file\+Name}{, }\item[{double}]{linear\+Deflection}{ = {\ttfamily 0.01}, }\item[{double}]{angular\+Deflection}{ = {\ttfamily 0.05}}\end{DoxyParamCaption})}
+
+
+
+读取指定路径的数据并显示 
+
+
+\begin{DoxyParams}{Parameters}
+{\em QString} & file\+Name，文件所在路径 \\
+\hline
+{\em double} & linear\+Deflection，默认值是0.01，设置线性偏转 \\
+\hline
+{\em double} & angular\+Deflection，默认值是0.05，设置角度偏差 \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following files\+:\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{_geometry_widget_8h}{Geometry\+Widget.\+h}}\item 
+Geometry\+Widget.\+cpp\end{DoxyCompactItemize}

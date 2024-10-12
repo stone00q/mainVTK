@@ -1,15 +1,6 @@
 #include "widget.h"
 #include "ui_widget.h"
 
-#include <vtkDataSetMapper.h>
-#include <vtkSmartPointer.h>
-#include <vtkMultiBlockDataSet.h>
-#include <vtkCylinderSource.h>
-#include <vtkGenericOpenGLRenderWindow.h>
-#include <QVTKOpenGLNativeWidget.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkRenderer.h>
-
 #include <qgridlayout.h>
 #include <qpushbutton.h>
 Widget::Widget(QWidget *parent)
@@ -19,44 +10,113 @@ Widget::Widget(QWidget *parent)
     ui->setupUi(this);
 
     //创建自定义widget实例
-    //m_tecplotWidget = new TecplotWidget(this);
-    m_geometryWidget = new GeometryWidget(this);
+    m_tecplotWidget = new TecplotWidget(this);
     //在当前widget上布局
     QVBoxLayout* layout = new QVBoxLayout(this);
-    //layout->addWidget(m_tecplotWidget);
-    layout->addWidget(m_geometryWidget);
-    QPushButton* interactorButton = new QPushButton("高亮交互",this);
-    layout->addWidget(interactorButton);
-    connect(interactorButton,&QPushButton::clicked,this,&Widget::interactorButton_clicked);
-    /******测试contour的功能*****
-    QPushButton* XButton = new QPushButton("Q==1000切片",this);
-    QPushButton* YButton = new QPushButton("T=300,350(Y==0.03)切片",this);
-    QPushButton* Xcolor = new QPushButton("x颜色映射",this);
-    QPushButton* GlyphButton = new QPushButton("速度映射(在x=0.03切片上)",this);
-    QPushButton* QButton = new QPushButton("sudu",this);
-    layout->addWidget(XButton);
-    layout->addWidget(YButton);
-    layout->addWidget(Xcolor);
-    layout->addWidget(GlyphButton);
-    layout->addWidget(QButton);*/
-    //设置vtktecplotwidget
-    //m_tecplotWidget->SetFileName(R"(D:\Project\VTK_QT\data\Tur_Merge_Field_[2000].dat)");
-    m_geometryWidget->SetFileName(R"(D:\Project\VTK_QT\data\f6_clean_dpwII_v2_whole_cf2 v3.step)");
-    /*int a = m_tecplotWidget->GetNumberOfProperty();
-    cout <<endl<<a;
-    // 连接信号槽
-    connect(XButton,&QPushButton::clicked,this,&Widget::XButton_clicked);
-    connect(YButton,&QPushButton::clicked,this,&Widget::YButton_clicked);
-    connect(Xcolor,&QPushButton::clicked,this,&Widget::Xcolor_clicked);
-    connect(GlyphButton,&QPushButton::clicked,this,&Widget::GlyphButton_clicked);
-    connect(QButton,&QPushButton::clicked,this,&Widget::QButton_clicked);*/
+    layout->addWidget(m_tecplotWidget);
+    m_tecplotWidget->SetFileName(R"(D:\Project\VTK_QT\data\Tur_Merge_Field_[2000].dat)");
+    /****测试渲染框颜色***/
+    //m_tecplotWidget->SetBackgroundColor(QColor(173, 216, 230));
+    QColor tmp=m_tecplotWidget->GetBackgroundColor();
+    cout<<tmp.redF()<<" "<<tmp.greenF()<<" "<<tmp.blueF()<<endl;
+
+    /****test about actor***/
+    QStringList actorList = m_tecplotWidget->GetActorList();
+    qInfo() << actorList;
+    QStringList propList = m_tecplotWidget->GetPropertyList("FLUID");
+    qInfo()<< propList;
+    qInfo() << m_tecplotWidget->GetPropertyName("FLUID",5);
+
+    m_tecplotWidget->ActorVisibilityOff("FLUID");
+    m_tecplotWidget->SetColorMapOn("P1","X");
+    m_tecplotWidget->SetColorMapOn("P2","X");
+    //m_tecplotWidget->SetColorMapOff("P2");
+    m_tecplotWidget->ActorVisibilityOff("P1");
+    m_tecplotWidget->ActorVisibilityOn("P1");
+    /***测试了等值线*
+
+    m_tecplotWidget->AddContour("FLUID");
+    m_tecplotWidget->SetContouredBy("Contour1","X");
+    propList=m_tecplotWidget->GetPropertyList("Contour1");
+    qInfo()<<propList;
+    m_tecplotWidget->SetColorMapOn("OUTLET","T");
+    m_tecplotWidget->SetColorMapOn("P1","T");
+    m_tecplotWidget->SetColorMapOff("P1");
+
+    QColor colorP2=m_tecplotWidget->GetSolidColor("P2");
+    qInfo()<<colorP2.red()<<colorP2.green()<<colorP2.blue();
+    qInfo()<<m_tecplotWidget->AddSliceWidget("FLUID");
+    m_tecplotWidget->Slice("Slice1");
+    m_tecplotWidget->ActorVisibilityOff("FLUID");
+    m_tecplotWidget->ActorVisibilityOff("OUTLET");
+    m_tecplotWidget->ActorVisibilityOff("P1");
+    m_tecplotWidget->ActorVisibilityOff("P2");
+    m_tecplotWidget->ActorVisibilityOff("INLET");
+    m_tecplotWidget->ActorVisibilityOff("HUB");
+    m_tecplotWidget->ActorVisibilityOff("BLADE");
+    m_tecplotWidget->ActorVisibilityOff("SHR");
+    qInfo()<<m_tecplotWidget->AddContour("Slice1");
+    m_tecplotWidget->ActorVisibilityOff("Slice1");
+    double* bounds=m_tecplotWidget->SetContouredBy("Contour1","T");
+    QStringList contour1list = this->m_tecplotWidget->GetPropertyList("Contour1");
+    qInfo()<< contour1list ;
+    qInfo()<<bounds[0]<<bounds[1];  //289.497 341.827
+    qInfo()<<m_tecplotWidget->AddEntry("Contour1",300);
+    qInfo()<<m_tecplotWidget->AddEntry("Contour1",320);
+    qInfo()<<m_tecplotWidget->AddEntry("Contour1",310);
+    qInfo()<<m_tecplotWidget->EditEntry("Contour1",1,340);
+    qInfo() <<m_tecplotWidget->RemoveEntry("Contour1",1);
+    m_tecplotWidget->ActorVisibilityOff("Contour1");*/
+
+    /***测试涡结构****
+    this->m_tecplotWidget->CalculateQCriterion("FLUID");
+    propList = m_tecplotWidget->GetPropertyList("FLUID");
+    qInfo()<<propList;
+    qInfo()<<m_tecplotWidget->AddContour("FLUID");
+    double* bound = m_tecplotWidget->SetContouredBy("Contour1","QCriterion");
+    qInfo()<<bound[0]<<bound[1];
+    m_tecplotWidget->ActorVisibilityOff("FLUID");
+    m_tecplotWidget->ActorVisibilityOff("OUTLET");
+    m_tecplotWidget->ActorVisibilityOff("P1");
+    m_tecplotWidget->ActorVisibilityOff("P2");
+    m_tecplotWidget->ActorVisibilityOff("INLET");
+    m_tecplotWidget->ActorVisibilityOff("HUB");
+    m_tecplotWidget->ActorVisibilityOff("BLADE");
+    m_tecplotWidget->ActorVisibilityOff("SHR");*/
+
+    /***测试矢量图****/
+
+
+    /***测试流场流线***
+    m_tecplotWidget->ActorVisibilityOff("FLUID");
+    m_tecplotWidget->ActorVisibilityOff("P1");
+    m_tecplotWidget->ActorVisibilityOff("P2");
+    m_tecplotWidget->ActorVisibilityOff("INLET");
+    m_tecplotWidget->ActorVisibilityOff("HUB");
+    m_tecplotWidget->ActorVisibilityOff("BLADE");
+    m_tecplotWidget->ActorVisibilityOff("SHR");
+    propList = m_tecplotWidget->GetPropertyList("OUTLET");
+    qInfo()<<propList;
+    qInfo()<<m_tecplotWidget->AddStreamTracer("OUTLET");*/
+
+    /****测试glyph**
+    this->m_tecplotWidget->AddGlyph("HUB");
+    this->m_tecplotWidget->SetGlyphVector("Glyph1","velocity");
+    m_tecplotWidget->ActorVisibilityOff("FLUID");
+    m_tecplotWidget->ActorVisibilityOff("P1");
+    m_tecplotWidget->ActorVisibilityOff("P2");
+    m_tecplotWidget->ActorVisibilityOff("INLET");
+    m_tecplotWidget->ActorVisibilityOff("HUB");
+    m_tecplotWidget->ActorVisibilityOff("BLADE");
+    m_tecplotWidget->ActorVisibilityOff("SHR");
+    m_tecplotWidget->ActorVisibilityOff("OUTLET");*/
 }
 
 Widget::~Widget()
 {
     delete ui;
 }
-/*
+
 void Widget::BackgroundButton_clicked()
 {
     //渲染窗口为浅蓝色
@@ -67,49 +127,34 @@ void Widget::SolidColorButton_clicked()
 {
     //固体为绿色
     QColor green(0, 255, 0);
-    m_tecplotWidget->SetSolidColor(green);
+    //m_tecplotWidget->SetSolidColor(green);
 }
-
+/*
 void Widget::XButton_clicked()
 {
     //x坐标颜色映射
     //tecplotWidget->SetColorMapVariable("p");
     tecplotWidget->SetColorMappingFlag(true);
-}
-void Widget::CutPlaneButton_clicked()
-{
-    m_tecplotWidget->SetCutPlaneWidget();
-}
-void Widget:: ColseCutWidget_clicked()
-{
-    m_tecplotWidget->SetCutPlaneWidget(false);
-}
-void Widget::CutButton_clicked()
-{
-    QString tmpName = m_tecplotWidget->AddCutPlane();
-    std::cout << endl <<"cutplane name:" << tmpName.toStdString();
-}
+}*/
 void Widget::basicButton1_clicked()
 {
-    m_tecplotWidget->SetColorMapObject("basicActor");
     QColor green(0, 255, 0);
-    m_tecplotWidget->SetSolidColor(green);
+    m_tecplotWidget->SetSolidColor("FLUID",green);
 }
 void Widget::basicButton2_clicked()
 {
-    m_tecplotWidget->SetColorMapObject("basicActor");
-    m_tecplotWidget->SetColorMapVariable("p");
+    m_tecplotWidget->SetColorMapOn("FLUID","p");
+
 }
 void Widget::slice1Button1_clicked()
 {
-    m_tecplotWidget->SetColorMapObject("Slice1");
+    //m_tecplotWidget->SetColorMapObject("Slice1");
     QColor red(255, 0, 0);
-    m_tecplotWidget->SetSolidColor(red);
+    //m_tecplotWidget->SetSolidColor(red);
 }
 void Widget::slice1Button2_clicked()
 {
-    m_tecplotWidget->SetColorMapObject("Slice1");
-    m_tecplotWidget->SetColorMapVariable("X");
+    m_tecplotWidget->SetColorMapOn("Slice1","X");
 }
 
 void Widget::XButton_clicked()
@@ -118,7 +163,6 @@ void Widget::XButton_clicked()
     m_tecplotWidget->SetContouredBy(name,"QCriterion");
     cout<<name.toStdString()<<endl;
     int entryid = m_tecplotWidget->AddEntry(name,1000);
-    m_tecplotWidget->ShowContour(name);
 
 }
 void Widget::YButton_clicked()
@@ -128,25 +172,20 @@ void Widget::YButton_clicked()
     //cout<<name.toStdString()<<endl;
     m_tecplotWidget->AddEntry(name,350);
     m_tecplotWidget->AddEntry(name,300);
-    m_tecplotWidget->ShowContour(name);
+
 }
 void Widget::Xcolor_clicked()
 {
-    m_tecplotWidget->SetColorMapObject("Contour1");
-    m_tecplotWidget->SetColorMapVariable("p");
+    m_tecplotWidget->SetColorMapOn("Contour1","p");
 }
 void Widget::GlyphButton_clicked()
 {
     QString name = m_tecplotWidget->AddGlyph("Contour1");
     m_tecplotWidget->SetGlyphVector(name,"velocity");
     m_tecplotWidget->SetGlyphPointsNumber(name,1000);
-    m_tecplotWidget->ShowGlyph(name);
+
 }
 void Widget::QButton_clicked()
 {
     m_tecplotWidget->CalculateQCriterion("basicActor");
-}*/
-void Widget::interactorButton_clicked()
-{
-    m_geometryWidget->EnableHighlightMode();
 }
