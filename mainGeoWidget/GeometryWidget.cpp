@@ -26,13 +26,15 @@ GeometryWidget::GeometryWidget(QWidget *parent)
 }
 void GeometryWidget::SetInputData(QString fileName,double linearDeflection,double angularDeflection)
 {
+    clock_t start = clock();
+
     this->geoReader->SetFileName(fileName.toStdString().c_str());
     this->geoReader->SetLinearDeflection(linearDeflection);
     this->geoReader->SetAngularDeflection(angularDeflection);
     if(fileName.endsWith(".step")||fileName.endsWith(".stp"))
     {
         this->geoReader->SetFileFormat(vtkOCCTReader::Format::STEP);// 执行读取操作
-    }else if(fileName.endsWith(".iges"))
+    }else if(fileName.endsWith(".iges")||fileName.endsWith(".igs"))
     {
         this->geoReader->SetFileFormat(vtkOCCTReader::Format::IGES);
     }else
@@ -41,6 +43,10 @@ void GeometryWidget::SetInputData(QString fileName,double linearDeflection,doubl
     }
     this->geoReader->Update();
     vtkMultiBlockDataSet* multiBlock = vtkMultiBlockDataSet::SafeDownCast(this->geoReader->GetOutput());
+    clock_t end = clock();
+    // 计算运行时间（以秒为单位）
+    double elapsed_time = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    std::cout<< "runtime:" << elapsed_time << " seconds" << std::endl;
     this->polyData = vtkPolyData::SafeDownCast(multiBlock->GetBlock(0));//取出第一块
     this->mapper->SetInputData(this->polyData);
     this->mapper->ScalarVisibilityOff();
@@ -74,13 +80,72 @@ void GeometryWidget::SetColorMapVisibility(bool flag, QString propName)
 }
 void GeometryWidget::EnableHighlightMode()
 {
-    this->highlightStyle->SetInput(this->polyData);
+    this->highlightStyle->SetInput(this->polyData,this);
     this->qvtkInteractor->SetInteractorStyle(this->highlightStyle);
-    this->highlightStyle->SurfIdCallback = [](int surfId) {
-        // 处理返回的 SurfID
-        std::cout << "Returned SurfID: " << surfId << std::endl;
-    };
     this->qvtkInteractor->Initialize();
-
 }
+HighlightInteractorStyle::HighlightInteractorStyle()
+{
+    this->defaultStyle = vtkSmartPointer< vtkInteractorStyleTrackballCamera>::New();
+    this->threshold = vtkSmartPointer<vtkThreshold>::New();
+    this->displayMapper = vtkSmartPointer<vtkDataSetMapper>::New();
+    this->displayMapper->ScalarVisibilityOff();  // 禁用标量可见性
+    this->displayActor = vtkSmartPointer<vtkActor>::New();
+    this->displayActor->SetMapper(displayMapper);
+    this->displayActor->GetProperty()->SetColor(1.0,0, 1);  // Highlighted color
+}
+void HighlightInteractorStyle::OnLeftButtonDown()
+{
+    //鼠标点击位置[x, y]   this->Picker = vtkCellPicker::SafeDownCast(this->GetInteractor()->GetPicker());
+    int* clickPos = this->Interactor->GetEventPosition();
 
+    // 进行point拾取
+    auto picker = this->Interactor->GetPicker();
+    picker->Pick(clickPos[0], clickPos[1], 0, this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
+
+    // 获取拾取到的cell ID
+    auto cellPicker = vtkCellPicker::SafeDownCast(picker);
+    auto cellId = cellPicker->GetCellId();
+    if (cellId == -1) {
+        vtkInteractorStyleTrackballCamera::OnLeftButtonDown();
+        return;
+    }
+    auto surfIdArray = vtkIntArray::SafeDownCast(PolyData->GetCellData()->GetArray("SurfID"));
+    if (!surfIdArray)
+    {
+        cout<<"SurfID array not found!"<<endl;
+        return;
+    }
+    int pickedSurfId = surfIdArray->GetValue(cellId);
+    //std::cout << "SurfID: " << pickedSurfId << std::endl;
+    emit this->geoWidget->SurfIdPicked(pickedSurfId);
+    //下面开始提取相同surfid的cell
+    threshold->ThresholdBetween(pickedSurfId, pickedSurfId);
+    threshold->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "SurfID");
+    threshold->Update();
+    displayMapper->SetInputConnection(threshold->GetOutputPort());
+    this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->AddActor(displayActor);
+    vtkInteractorStyleTrackballCamera::OnLeftButtonDown();  //事件转发
+}
+void HighlightInteractorStyle::OnKeyPress()
+{
+    // 获取按下的键
+    std::string key = this->Interactor->GetKeySym();
+    // 如果按下的是 "Escape" 键
+    if (key == "Escape")
+    {
+        // 调用 InteractionManager 退出高亮模式
+        if (this->Interactor)
+        {
+            this->Interactor->SetInteractorStyle(defaultStyle);
+        }
+    }
+    // 调用父类方法，处理其他按键
+    vtkInteractorStyleTrackballCamera::OnKeyPress();
+}
+void HighlightInteractorStyle::SetInput(vtkSmartPointer<vtkPolyData> data,GeometryWidget* widget)
+{
+    this->PolyData = data;
+    threshold->SetInputData(PolyData);
+    geoWidget = widget;
+}

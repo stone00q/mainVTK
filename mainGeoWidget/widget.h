@@ -9,7 +9,7 @@
 #include <QWidget>
 #include <QProcess>
 #include "GeometryWidget.h"
-
+#include <QDebug>
 QT_BEGIN_NAMESPACE
 namespace Ui { class Widget; }
 QT_END_NAMESPACE
@@ -52,6 +52,11 @@ private slots:
      * @memberof Widget
      */
     void closeColorMapButton_clicked();
+
+    void handleSurfIdPicked(int surId)
+    {
+        qInfo()<< "emit信号接收：surfid "<<surId;
+    }
 private:
     Ui::Widget *ui;
     GeometryWidget* m_geometryWidget;
