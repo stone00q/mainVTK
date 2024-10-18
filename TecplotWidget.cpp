@@ -13,7 +13,8 @@ TecplotWidget::TecplotWidget(QWidget *parent)
     this->m_renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     this->m_renderWindow->AddRenderer(m_renderer);
     this->SetRenderWindow(m_renderWindow);
-
+    QColor lightBlue(82, 87, 110);
+    this->m_renderer->SetBackground(lightBlue.redF(), lightBlue.greenF(), lightBlue.blueF());
     //获取交互器
     this->m_qvtkInteractor=this->GetInteractor();
 }
@@ -391,6 +392,14 @@ QString TecplotWidget::AddContour(QString contourDerivedActor)
     std::string derivedName = contourDerivedActor.toStdString();
     contour->Initialize(contourName,derivedName,this->m_actorsList,this->m_renderer);
     //此时，actorslist里添加了这个contourname对应的actor
+    //test输出
+    //auto testActor=m_actorsList[contourName];
+    //auto testData = testActor->GetMapper()->GetInput()->GetPointData();
+    //qInfo()<<"当actor加入actorlist后，其属性列表有"<<endl;
+    //for(int i = 0 ;i<testData->GetNumberOfArrays();i++)
+    //{
+    //    qInfo()<<testData->GetArrayName(i)<<endl;
+    //}
     this->m_actorsStatus[contourName] = true;
     QString name = QString::fromStdString(contourName);
     return name;
@@ -448,16 +457,18 @@ QString TecplotWidget::AddGlyph(QString glyphDerived)
     QString name = QString::fromStdString(glyphName);
     return name;
 }
-void TecplotWidget::SetGlyphVector(QString glyphName,QString vectorName)
+void TecplotWidget::SetGlyphActiveVector(QString glyphName,QString vectorName)
 {
     Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
     glyphptr->SetGlyphVector(vectorName.toStdString());
+    this->m_renderWindow->Render();
 }
 void TecplotWidget::SetGlyphSourceTipLength(QString glyphName, double tipLength)
 {
     //箭头尖的长度
     Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
     glyphptr->SetGlyphSourceTipLength(tipLength);
+    this->m_renderWindow->Render();
 }
 
 void TecplotWidget::SetGlyphSourceTipRadius(QString glyphName, double tipRadius)
@@ -465,24 +476,27 @@ void TecplotWidget::SetGlyphSourceTipRadius(QString glyphName, double tipRadius)
     //箭头尖的半径
      Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
      glyphptr->SetGlyphSourceTipRadius(tipRadius);
+     this->m_renderWindow->Render();
 }
 void TecplotWidget::SetGlyphSourceShaftRadius(QString glyphName,double shaftRadius)
 {
     // 箭头杆的半径
     Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
     glyphptr->SetGlyphSourceShaftRadius(shaftRadius);
+    this->m_renderWindow->Render();
 }
 void TecplotWidget::SetGlyphSourceScaleFactor(QString glyphName, double scaleFactor)
 {
     //factor大小
     Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
     glyphptr->SetGlyphSourceScaleFactor(scaleFactor);
+    this->m_renderWindow->Render();
 }
 void TecplotWidget::SetGlyphPointsNumber(QString glyphName,int pointsNumber)
 {
     Glyph* glyphptr = this->m_glyphsList[glyphName.toStdString()];
     glyphptr->SetGlyphPointsNumber(pointsNumber);
-
+    this->m_renderWindow->Render();
 }
 
 void TecplotWidget::CalculateQCriterion(QString actorName)
@@ -519,14 +533,23 @@ void TecplotWidget::CalculateQCriterion(QString actorName)
 }
 QString TecplotWidget::AddStreamTracer(QString derivedActor)
 {
+    this->m_streamTraceNum++;
     std::string name = "StreamTracer"+std::to_string(this->m_streamTraceNum);
     vtkActor* objActor = this->m_actorsList[derivedActor.toStdString()];
-    vtkPolyData* data = vtkPolyData::SafeDownCast(objActor->GetMapper()->GetInput());
-    if(data==nullptr) cout<<"streamtracer data is nullptr"<<endl;
+    vtkDataSet* data = vtkDataSet::SafeDownCast(objActor->GetMapper()->GetInput());
     vtkSmartPointer<vtkPolyData> polyData = vtkSmartPointer<vtkPolyData>::New();
-    //polyData->DeepCopy(data);
+    if(data->IsA("vtkUnstructuredGrid"))
+    {
+        vtkSmartPointer<vtkGeometryFilter> geoFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+        geoFilter->SetInputData(data);
+        geoFilter->Update();
+        polyData=geoFilter->GetOutput();
+    }else if(data->IsA("vtkPolyData"))
+    {
+        polyData = vtkPolyData::SafeDownCast(data);
+    }
     vtkSmartPointer<vtkPolyDataNormals> normalsFilter = vtkSmartPointer<vtkPolyDataNormals>::New();
-    normalsFilter->SetInputData(data);
+    normalsFilter->SetInputData(polyData);
     normalsFilter->ComputePointNormalsOn();
     normalsFilter->ConsistencyOn();
     normalsFilter->SplittingOff();  // 禁止切割几何
@@ -558,9 +581,9 @@ QString TecplotWidget::AddStreamTracer(QString derivedActor)
         double dotProduct = vtkMath::Dot(velocity, normal);
         for (int j = 0; j < 3; ++j) {
             projected[j] = velocity[j] - dotProduct * normal[j];
-            cout << projected[j] << " ";
+            //cout << projected[j] << " ";
         }
-        cout << endl;
+        //cout << endl;
         // 将投影结果存储在数组中
         projectedVelocity->SetTuple(i, projected);
     }
@@ -568,23 +591,23 @@ QString TecplotWidget::AddStreamTracer(QString derivedActor)
     data->GetPointData()->SetActiveVectors("projectedVelocity");
     vtkSmartPointer<vtkMaskPoints> maskPoints = vtkSmartPointer<vtkMaskPoints>::New();
     this->m_streamTraceMaskPointsList[name] =maskPoints;
-    maskPoints->SetInputData(polyData);
-    maskPoints->SetOnRatio(1000); // Select every 10th point
+    maskPoints->SetInputData(data);
+    maskPoints->SetOnRatio(100); // Select every 10th point
     maskPoints->RandomModeOn(); // Enable random selection
-    maskPoints->SetMaximumNumberOfPoints(100); // Set maximum number of seed points
+    maskPoints->SetMaximumNumberOfPoints(100000); // Set maximum number of seed points
     maskPoints->Update();
     vtkSmartPointer<vtkStreamTracer> streamTracer = vtkSmartPointer<vtkStreamTracer>::New();
     this->m_streamTraceList[name]=streamTracer;
-    streamTracer->SetInputData(polyData); // 使用计算过的 PolyData 作为输入
+    streamTracer->SetInputData(data); // 使用计算过的 PolyData 作为输入
     streamTracer->SetSourceConnection(maskPoints->GetOutputPort());
     streamTracer->SetIntegrationDirectionToBoth(); // 设置流线的方向
     streamTracer->SetMaximumPropagation(100); // 设置流线的最大长度
+    streamTracer->SetMaximumNumberOfSteps(1000);
     streamTracer->SetIntegrator(vtkSmartPointer<vtkRungeKutta4>::New());
     streamTracer->SetComputeVorticity(true); // 计算旋度
     // 映射流线到图形管道
     vtkSmartPointer<vtkPolyDataMapper> streamlineMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     streamlineMapper->SetInputConnection(streamTracer->GetOutputPort());
-
     vtkSmartPointer<vtkActor> streamlineActor = vtkSmartPointer<vtkActor>::New();
     streamlineActor->SetMapper(streamlineMapper);
     this->m_renderer->AddActor(streamlineActor);
@@ -601,6 +624,7 @@ bool TecplotWidget::SetStreamTracerRatio(QString streamTraceActor,int pointRatio
     vtkMaskPoints* maskPoints = this->m_streamTraceMaskPointsList[name];
     maskPoints->SetOnRatio(pointRatio);
     maskPoints->SetMaximumNumberOfPoints(maxPointNum);
+    maskPoints->Modified();
     maskPoints->Update();
     this->m_renderWindow->Render();
     return true;
@@ -625,6 +649,7 @@ bool TecplotWidget::SetStreamTracerDiretion(QString streamTraceActor,int flag)
     default:
         return false;
     }
+    tracer->Modified();
     tracer->Update();
     this->m_renderWindow->Render();
     return true;
@@ -636,6 +661,19 @@ bool TecplotWidget::SetStreamTracerMaximumPropagation(QString streamTraceActor,d
         return false;
     vtkStreamTracer* tracer = this->m_streamTraceList[name];
     tracer->SetMaximumPropagation(maxPropagation);
+    tracer->Modified();
+    tracer->Update();
+    this->m_renderWindow->Render();
+    return true;
+}
+bool TecplotWidget::SetStreamTracerMaximumNumberOfSteps(QString streamTraceActor,int maxNumberOfSteps)
+{
+    std::string name = streamTraceActor.toStdString();
+    if(this->m_streamTraceList.count(name)==0)
+        return false;
+    vtkStreamTracer* tracer = this->m_streamTraceList[name];
+    tracer->SetMaximumNumberOfSteps(maxNumberOfSteps);
+    tracer->Modified();
     tracer->Update();
     this->m_renderWindow->Render();
     return true;
@@ -647,6 +685,7 @@ bool TecplotWidget::SetStreamTracerMaximumIntegrationStep(QString streamTraceAct
         return false;
     vtkStreamTracer* tracer = this->m_streamTraceList[name];
     tracer->SetMaximumIntegrationStep(maxIntegrationStep);
+    tracer->Modified();
     tracer->Update();
     this->m_renderWindow->Render();
     return true;
@@ -659,6 +698,7 @@ bool TecplotWidget::SetStreamTracerIntegrationStepUnit(QString streamTraceActor,
     if(unit!=1&&unit!=2) return false;
     vtkStreamTracer* tracer = this->m_streamTraceList[name];
     tracer->SetIntegrationStepUnit(unit);
+    tracer->Modified();
     tracer->Update();
     this->m_renderWindow->Render();
     return true;
@@ -834,13 +874,8 @@ void Contour::Initialize(std::string contourName, std::string derivedName, std::
 
     vtkActor* derivedActor = actorsList[derivedName];
     this->m_data = vtkDataSet::SafeDownCast(derivedActor->GetMapper()->GetInput());//filter的输入
-    cout<<"contour propertylist:";
-    for(int i =0;i<this->m_data->GetPointData()->GetNumberOfArrays();i++)
-    {
-
-        cout<<this->m_data->GetPointData()->GetArrayName(i)<<" ";
-    }
     this->m_contourFilter->SetInputData(this->m_data);
+    this->m_contourFilter->Update();
     //filter连接mapper、actor
     vtkSmartPointer<vtkPolyDataMapper> contourMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     contourMapper->SetInputConnection(this->m_contourFilter->GetOutputPort());
@@ -854,6 +889,7 @@ double* Contour::SetActiveProperty(std::string propertyName)
     // 设置activescalar
     this->propertyStatus=true;
     int scalarId = this->m_data->GetPointData()->SetActiveScalars(propertyName.c_str());
+    this->m_contourFilter->Update();
     return this->m_data->GetPointData()->GetArray(scalarId)->GetRange();
 }
 int Contour::AddEntry(double value)
@@ -861,6 +897,7 @@ int Contour::AddEntry(double value)
     if(!propertyStatus) return -1;
     this->m_contourFilter->SetValue(this->m_valueNum,value);
     this->m_valueNum++;//指向下一个空的entry位置
+    this->m_contourFilter->Update();
     return this->m_valueNum-1;//id从0开始
 }
 bool Contour::EditEntry(int entryId,double value)
@@ -869,6 +906,7 @@ bool Contour::EditEntry(int entryId,double value)
         return false;
     }
     this->m_contourFilter->SetValue(entryId,value);
+    this->m_contourFilter->Update();
     return true;
 }
 bool Contour::RemoveEntry(int entryId)
@@ -891,6 +929,7 @@ bool Contour::RemoveEntry(int entryId)
         this->m_contourFilter->SetValue(static_cast<int>(i), contourValues[i]);
     }
     contourValues.clear();
+    this->m_contourFilter->Update();
     return true;
 }
 /***************************************************************************
@@ -909,9 +948,8 @@ void Glyph::Initialize(std::string glyphName,std::string derivedName,std::map<st
 
     vtkActor* derivedActor = actorsList[derivedName];
     this->m_data = vtkDataSet::SafeDownCast(derivedActor->GetMapper()->GetInput());//maskpoints的输入
-    //maskpoints还没有设置采样率
     this->m_maskPoints->SetInputData(this->m_data);
-    this->m_maskPoints->SetOnRatio(100);
+    this->m_maskPoints->SetOnRatio(1000);
     this->m_maskPoints->RandomModeOn(); // 随机选择点
     //source设置（这些是默认
     this->m_arrowSource->SetTipLength(0.1);   // 设置箭头尖的长度
@@ -922,7 +960,7 @@ void Glyph::Initialize(std::string glyphName,std::string derivedName,std::map<st
     this->m_glyphFilter->SetInputConnection(this->m_maskPoints->GetOutputPort());
     this->m_glyphFilter->SetVectorModeToUseVector();
     this->m_glyphFilter->SetScaleModeToScaleByVector();
-    this->m_glyphFilter->SetScaleFactor(0.00001); // 调整箭头大小,原速度适配factor=0.00001
+    this->m_glyphFilter->SetScaleFactor(0.0001); // 调整箭头大小,原速度适配factor=0.00001
     //filter连接mapper、actor
     vtkSmartPointer<vtkPolyDataMapper> glyphMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     glyphMapper->SetInputConnection(this->m_glyphFilter->GetOutputPort());
@@ -934,28 +972,39 @@ void Glyph::Initialize(std::string glyphName,std::string derivedName,std::map<st
 void Glyph::SetGlyphVector(std::string vectorName)
 {
     this->m_data->GetPointData()->SetActiveVectors(vectorName.c_str());
+    this->m_data->Modified();
 }
 void Glyph::SetGlyphSourceTipLength(double tipLength)
 {
     this->m_arrowSource->SetTipLength(tipLength);
+    this->m_arrowSource->Modified();
+    this->m_arrowSource->Update();
 }
 void Glyph::SetGlyphSourceTipRadius(double tipRadius)
 {
     this->m_arrowSource->SetTipRadius(tipRadius);
+    this->m_arrowSource->Modified();
+    this->m_arrowSource->Update();
 }
 void Glyph::SetGlyphSourceShaftRadius(double shaftRadius)
 {
     this->m_arrowSource->SetShaftRadius(shaftRadius);
+    this->m_arrowSource->Modified();
+    this->m_arrowSource->Update();
 }
 void Glyph::SetGlyphSourceScaleFactor(double scaleFactor)
 {
     this->m_glyphFilter->SetScaleFactor(scaleFactor);
+    this->m_glyphFilter->Modified();
+    this->m_glyphFilter->Update();
 }
 void Glyph::SetGlyphPointsNumber(int pointsNumber)
 {
     int n = this ->m_data->GetNumberOfPoints();
     int ratio = n/pointsNumber;
     this->m_maskPoints->SetOnRatio(ratio);
+    this->m_maskPoints->Modified();
+    this->m_arrowSource->Update();
 }
 void TecplotReader::pointsReader(int pointId, const std::string& line, int varNum, std::vector<vtkSmartPointer<vtkFloatArray>>& zoneData, vtkPoints* thePoints) {
     std::istringstream iss(line);
@@ -1221,7 +1270,7 @@ vtkMultiBlockDataSet* TecplotReader::ReadTecplotData(const std::string &fileName
             sharedPointData = ug->GetPointData();
         }
         else {
-            ug->GetPointData()->DeepCopy(sharedPointData);
+            ug->GetPointData()->ShallowCopy(sharedPointData);
         }
 
         int zoneId = zoneNum - 1;

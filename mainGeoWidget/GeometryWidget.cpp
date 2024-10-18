@@ -24,13 +24,10 @@ GeometryWidget::GeometryWidget(QWidget *parent)
     QColor lightBlue(82, 87, 110);
     renderer->SetBackground(lightBlue.redF(), lightBlue.greenF(), lightBlue.blueF());
 }
-void GeometryWidget::SetInputData(QString fileName,double linearDeflection,double angularDeflection)
+void GeometryWidget::SetInputData(QString fileName)
 {
-    clock_t start = clock();
-
+    //clock_t start = clock();
     this->geoReader->SetFileName(fileName.toStdString().c_str());
-    this->geoReader->SetLinearDeflection(linearDeflection);
-    this->geoReader->SetAngularDeflection(angularDeflection);
     if(fileName.endsWith(".step")||fileName.endsWith(".stp"))
     {
         this->geoReader->SetFileFormat(vtkOCCTReader::Format::STEP);// 执行读取操作
@@ -41,12 +38,13 @@ void GeometryWidget::SetInputData(QString fileName,double linearDeflection,doubl
     {
         cout<<"报错"<<endl;
     }
+    this->hasData=true;
     this->geoReader->Update();
     vtkMultiBlockDataSet* multiBlock = vtkMultiBlockDataSet::SafeDownCast(this->geoReader->GetOutput());
-    clock_t end = clock();
+    //clock_t end = clock();
     // 计算运行时间（以秒为单位）
-    double elapsed_time = static_cast<double>(end - start) / CLOCKS_PER_SEC;
-    std::cout<< "runtime:" << elapsed_time << " seconds" << std::endl;
+    //double elapsed_time = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    //std::cout<< "runtime:" << elapsed_time << " seconds" << std::endl;
     this->polyData = vtkPolyData::SafeDownCast(multiBlock->GetBlock(0));//取出第一块
     this->mapper->SetInputData(this->polyData);
     this->mapper->ScalarVisibilityOff();
@@ -55,7 +53,17 @@ void GeometryWidget::SetInputData(QString fileName,double linearDeflection,doubl
     this->renderer->ResetCamera();
     this->renderWindow->Render();
 }
-
+void GeometryWidget::SetDeflection(double linearDeflection, double angularDeflection)
+{
+    if(!this->hasData) return;
+    this->geoReader->SetLinearDeflection(linearDeflection);
+    this->geoReader->SetAngularDeflection(angularDeflection);
+    this->geoReader->Update();
+    this->polyData = vtkPolyData::SafeDownCast(this->geoReader->GetOutput()->GetBlock(0));
+    this->mapper->SetInputData(this->polyData);
+    this->renderer->ResetCamera();
+    this->renderWindow->Render();
+}
 void GeometryWidget::SetColorMapVisibility(bool flag, QString propName)
 {
     if(flag)

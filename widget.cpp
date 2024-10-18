@@ -22,31 +22,26 @@ Widget::Widget(QWidget *parent)
 
     /****test about actor***/
     QStringList actorList = m_tecplotWidget->GetActorList();
-    qInfo() << actorList;
+    //qInfo() << actorList;
     QStringList propList = m_tecplotWidget->GetPropertyList("FLUID");
-    qInfo()<< propList;
-    qInfo() << m_tecplotWidget->GetPropertyName("FLUID",5);
+    //qInfo()<< propList;
+    //qInfo() << m_tecplotWidget->GetPropertyName("FLUID",5);
 
-    m_tecplotWidget->ActorVisibilityOff("FLUID");
-    m_tecplotWidget->SetColorMapOn("P1","X");
-    m_tecplotWidget->SetColorMapOn("P2","X");
+    //m_tecplotWidget->ActorVisibilityOff("FLUID");
+    //m_tecplotWidget->SetColorMapOn("P1","X");
+    //m_tecplotWidget->SetColorMapOn("P2","X");
     //m_tecplotWidget->SetColorMapOff("P2");
-    m_tecplotWidget->ActorVisibilityOff("P1");
-    m_tecplotWidget->ActorVisibilityOn("P1");
+    // m_tecplotWidget->ActorVisibilityOff("P1");
+    //m_tecplotWidget->ActorVisibilityOn("P1");
     /***测试了等值线*
-
+    //提取x=0.03的面，做速度矢量映射
     m_tecplotWidget->AddContour("FLUID");
     m_tecplotWidget->SetContouredBy("Contour1","X");
-    propList=m_tecplotWidget->GetPropertyList("Contour1");
-    qInfo()<<propList;
-    m_tecplotWidget->SetColorMapOn("OUTLET","T");
-    m_tecplotWidget->SetColorMapOn("P1","T");
-    m_tecplotWidget->SetColorMapOff("P1");
-
-    QColor colorP2=m_tecplotWidget->GetSolidColor("P2");
-    qInfo()<<colorP2.red()<<colorP2.green()<<colorP2.blue();
-    qInfo()<<m_tecplotWidget->AddSliceWidget("FLUID");
-    m_tecplotWidget->Slice("Slice1");
+    m_tecplotWidget->AddEntry("Contour1",0.03);
+    //m_tecplotWidget->SetColorMapOn("Contour1","Y");
+    //propList=m_tecplotWidget->GetPropertyList("Contour1");
+    //qInfo()<<"add entry:get_contour1propertylist:";
+    //qInfo()<<propList;
     m_tecplotWidget->ActorVisibilityOff("FLUID");
     m_tecplotWidget->ActorVisibilityOff("OUTLET");
     m_tecplotWidget->ActorVisibilityOff("P1");
@@ -55,6 +50,14 @@ Widget::Widget(QWidget *parent)
     m_tecplotWidget->ActorVisibilityOff("HUB");
     m_tecplotWidget->ActorVisibilityOff("BLADE");
     m_tecplotWidget->ActorVisibilityOff("SHR");
+    m_tecplotWidget->ActorVisibilityOff("Contour1");
+    m_tecplotWidget->AddGlyph("Contour1");
+    m_tecplotWidget->SetGlyphVector("Glyph1","velocity");
+    m_tecplotWidget->SetGlyphPointsNumber("Glyph1",10);
+    m_tecplotWidget->SetGlyphSourceScaleFactor("Glyph1",0.1);*/
+    /*
+    qInfo()<<m_tecplotWidget->AddSliceWidget("FLUID");
+    m_tecplotWidget->Slice("Slice1");
     qInfo()<<m_tecplotWidget->AddContour("Slice1");
     m_tecplotWidget->ActorVisibilityOff("Slice1");
     double* bounds=m_tecplotWidget->SetContouredBy("Contour1","T");
@@ -66,7 +69,8 @@ Widget::Widget(QWidget *parent)
     qInfo()<<m_tecplotWidget->AddEntry("Contour1",310);
     qInfo()<<m_tecplotWidget->EditEntry("Contour1",1,340);
     qInfo() <<m_tecplotWidget->RemoveEntry("Contour1",1);
-    m_tecplotWidget->ActorVisibilityOff("Contour1");*/
+    m_tecplotWidget->ActorVisibilityOn("Contour1");
+    m_tecplotWidget->SetColorMapOn("Contour1","T");*/
 
     /***测试涡结构****
     this->m_tecplotWidget->CalculateQCriterion("FLUID");
@@ -84,10 +88,8 @@ Widget::Widget(QWidget *parent)
     m_tecplotWidget->ActorVisibilityOff("BLADE");
     m_tecplotWidget->ActorVisibilityOff("SHR");*/
 
-    /***测试矢量图****/
-
-
-    /***测试流场流线***
+    /***测试矢量图***
+    qInfo()<<m_tecplotWidget->AddGlyph("FLUID");
     m_tecplotWidget->ActorVisibilityOff("FLUID");
     m_tecplotWidget->ActorVisibilityOff("P1");
     m_tecplotWidget->ActorVisibilityOff("P2");
@@ -95,13 +97,18 @@ Widget::Widget(QWidget *parent)
     m_tecplotWidget->ActorVisibilityOff("HUB");
     m_tecplotWidget->ActorVisibilityOff("BLADE");
     m_tecplotWidget->ActorVisibilityOff("SHR");
-    propList = m_tecplotWidget->GetPropertyList("OUTLET");
-    qInfo()<<propList;
-    qInfo()<<m_tecplotWidget->AddStreamTracer("OUTLET");*/
+    m_tecplotWidget->ActorVisibilityOff("OUTLET");
+    m_tecplotWidget->SetGlyphActiveVector("Glyph1","velocity");
+    m_tecplotWidget->SetGlyphSourceTipRadius("Glyph1",0.1);
+    m_tecplotWidget->SetGlyphPointsNumber("Glyph1",100);
+    m_tecplotWidget->SetGlyphSourceScaleFactor("Glyph1",0.1);*/
 
-    /****测试glyph**
-    this->m_tecplotWidget->AddGlyph("HUB");
-    this->m_tecplotWidget->SetGlyphVector("Glyph1","velocity");
+
+    /***测试流场流线***/
+    //z-buffter冲突问题
+    m_tecplotWidget->AddContour("FLUID");
+    m_tecplotWidget->SetContouredBy("Contour1","X");
+    m_tecplotWidget->AddEntry("Contour1",0.03);
     m_tecplotWidget->ActorVisibilityOff("FLUID");
     m_tecplotWidget->ActorVisibilityOff("P1");
     m_tecplotWidget->ActorVisibilityOff("P2");
@@ -109,7 +116,15 @@ Widget::Widget(QWidget *parent)
     m_tecplotWidget->ActorVisibilityOff("HUB");
     m_tecplotWidget->ActorVisibilityOff("BLADE");
     m_tecplotWidget->ActorVisibilityOff("SHR");
-    m_tecplotWidget->ActorVisibilityOff("OUTLET");*/
+    m_tecplotWidget->ActorVisibilityOff("OUTLET");
+    m_tecplotWidget->ActorVisibilityOff("Contour1");
+    qInfo()<<m_tecplotWidget->AddStreamTracer("Contour1");
+    qInfo()<<m_tecplotWidget->GetPropertyList("Contour1");
+    qInfo()<<m_tecplotWidget->GetPropertyList("StreamTracer1");
+    //m_tecplotWidget->SetStreamTracerRatio("StreamTracer1",10,100000);
+    m_tecplotWidget->SetStreamTracerDiretion("StreamTracer1",-1);
+    m_tecplotWidget->SetStreamTracerMaximumPropagation("StreamTracer1",10);
+    //m_tecplotWidget->SetStreamTracerIntegrationStepUnit("StreamTracer1",2);
 }
 
 Widget::~Widget()
@@ -181,7 +196,7 @@ void Widget::Xcolor_clicked()
 void Widget::GlyphButton_clicked()
 {
     QString name = m_tecplotWidget->AddGlyph("Contour1");
-    m_tecplotWidget->SetGlyphVector(name,"velocity");
+    m_tecplotWidget->SetGlyphActiveVector(name,"velocity");
     m_tecplotWidget->SetGlyphPointsNumber(name,1000);
 
 }

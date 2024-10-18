@@ -28,6 +28,9 @@ Widget::Widget(QWidget *parent)
     connect(closeColorMapButton,&QPushButton::clicked,this,&Widget::closeColorMapButton_clicked);
 
     connect(m_geometryWidget,&GeometryWidget::SurfIdPicked,this,&Widget::handleSurfIdPicked);
+    QPushButton* setDeflectionButton=new QPushButton("linearDeflection=0.01,angularDeflection= 0.05",this);
+    layout->addWidget(setDeflectionButton);
+    connect(setDeflectionButton,&QPushButton::clicked,this,&Widget::setDeflectionButton_clicked);
 }
 
 Widget::~Widget()
@@ -47,4 +50,8 @@ void Widget::openColorMapButton_clicked()
 void Widget::closeColorMapButton_clicked()
 {
     m_geometryWidget->SetColorMapVisibility(FALSE);
+}
+void Widget::setDeflectionButton_clicked()
+{
+    m_geometryWidget->SetDeflection();
 }

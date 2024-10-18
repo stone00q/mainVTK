@@ -61,6 +61,7 @@ vtkInteractionWidgets-8.2.lib\
 vtkIOCore-8.2.lib\
 vtkIOGeometry-8.2.lib\
 vtkIOOCCT-8.2.lib\
+vtkRenderingContextOpenGL2-8.2.lib\
 vtkRenderingCore-8.2.lib\
 vtkRenderingFreeType-8.2.lib\
 vtkRenderingOpenGL2-8.2.lib\

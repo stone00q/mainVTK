@@ -82,10 +82,17 @@ public:
     /**
      * @brief 读取指定路径的数据并显示
      * @param QString fileName，文件所在路径
-     * @param double linearDeflection，默认值是0.01，设置线性偏转
-     * @param double angularDeflection，默认值是0.05，设置角度偏差
+     * @details 读取的时候默认linearDeflection=0.1，angularDeflection=0.5
      */
-    void SetInputData(QString fileName,double linearDeflection=0.01, double angularDeflection= 0.05);
+    void SetInputData(QString fileName);
+
+    /**
+     * @brief SetDeflection精度相关设置
+     * @param double linearDeflection，默认值是0.02，设置线性偏转
+     * @param double angularDeflection，默认值是0.1，设置角度偏差
+     * @param angularDeflection
+     */
+    void SetDeflection(double linearDeflection=0.02, double angularDeflection= 0.1);
 
     /**
      * @brief   开启高亮交互
@@ -119,6 +126,7 @@ private:
     vtkSmartPointer<HighlightInteractorStyle> highlightStyle;
     vtkSmartPointer<vtkCellPicker> cellPicker;
     vtkSmartPointer<vtkInteractorStyleTrackballCamera> defaultStyle;
+    bool hasData = false;
 };
 
 #endif // GEOMETRYWIDGET_H

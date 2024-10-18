@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QMessageBox>
-
+#include <QDebug>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -42,13 +42,13 @@
 #include <QPoint>
 
 #include <vtkContourFilter.h>
-
+#include <vtkGeometryFilter.h>
 #include <vtkArrayCalculator.h>
 #include <vtkPointSource.h>
 #include <vtkStreamTracer.h>
 #include <vtkRungeKutta4.h>
 #include <vtkPolyData.h>
-#include <vtkPPolyDataNormals.h>
+#include <vtkPolyDataNormals.h>
 #include <vtkMath.h>
 
 #include <vtkArrowSource.h>
@@ -279,7 +279,6 @@ public:
      */
     QColor GetSolidColor(QString actorName);
 
-    /****设置颜色映射？？？？需要测试****/
     /**
      * @brief SetColorMapOn
      * @param QString actorName，进行颜色映射的actor名称
@@ -371,57 +370,55 @@ public:
      */
     bool RemoveEntry(QString contourName,int entryId);
 
-    //void ShowContour(QString contourName);//注意，显示某个contour的时候，默认会把其他的都关掉
-
     /****矢量图形化****/
     /**
      * @brief AddGlyph
      * @param QString glyphDerivedActor，指定glyph由哪个actor生成
      * @return  QString，返回添加的glyph的名字，注意是默认命名即“glyph”+第“i”个。
-     * @details 此时并没有渲染更新结果，相当于只是新建了个glyph，但是参数没有设置
+     * @details 默认参数是采样点ration1/1000，TipLength=0.1，TipRadius=0.01，ShaftRadius=0.001，ScaleFactor=0.0001
      */
     QString AddGlyph(QString glyphDerivedActor);
 
     /**
      * @brief SetGlyphVector
      * @param QString glyphName，需要进行操作的glyph名称
-     * @param QString glyphName，指定矢量化的active向量
-     * @details 设置某个glyph的active向量，即进行矢量化的属性，但是设计结果需要调用ShowGlyph实现
+     * @param QString vectorName，指定矢量化的active向量
+     * @details 设置某个glyph的active向量，即进行矢量化的属性
      */
-    void SetGlyphVector(QString glyphName,QString vectorName);
+    void SetGlyphActiveVector(QString glyphName,QString vectorName);
 
     /**
      * @brief SetGlyphSourceTipLength对于指定的glyph调整箭头尖的长度
-     * @param QStrin glyphName
-     * @param double tipLength
+     * @param QString glyphName，需要进行操作的glyph名称
+     * @param double tipLength，箭头尖的长度
      */
-    void SetGlyphSourceTipLength(QString glyphName, double tipLength);  //箭头尖的长度
+    void SetGlyphSourceTipLength(QString glyphName, double tipLength);
 
     /**
      * @brief SetGlyphSourceTipRadius对于指定的glyph调整箭头尖的半径
-     * @param glyphName
-     * @param tipRadius
+     * @param QString glyphName，需要进行操作的glyph名称
+     * @param double tipRadius，箭头尖的半径
      */
-    void SetGlyphSourceTipRadius(QString glyphName, double tipRadius);  //箭头尖的半径
+    void SetGlyphSourceTipRadius(QString glyphName, double tipRadius);
 
     /**
      * @brief SetGlyphSourceShaftRadius对于指定的glyph调整箭头杆的半径
-     * @param glyphName
-     * @param shaftRadius
+     * @param QString glyphName，需要进行操作的glyph名称
+     * @param double shaftRadius，箭头杆的半径
      */
-    void SetGlyphSourceShaftRadius(QString glyphName,double shaftRadius);  // 箭头杆的半径
+    void SetGlyphSourceShaftRadius(QString glyphName,double shaftRadius);
 
     /**
      * @brief SetGlyphSourceScaleFactor对于指定的glyph调整factor大小
-     * @param glyphName
-     * @param scaleFactor
+     * @param QString glyphName，需要进行操作的glyph名称
+     * @param double scaleFactor，调整向量对于矢量化的影响程度
      */
-    void SetGlyphSourceScaleFactor(QString glyphName, double scaleFactor);  //factor大小
+    void SetGlyphSourceScaleFactor(QString glyphName, double scaleFactor);
 
     /**
-     * @brief SetGlyphPointsNumber对于指定的glyph调整箭头杆的半径
-     * @param glyphName
-     * @param pointsNumber提取n个点
+     * @brief SetGlyphPointsNumber对于指定的glyph调整抽样点数，即显示n个点
+     * @param QString glyphName，需要进行操作的glyph名称
+     * @param int pointsNumber，提取n个点
      */
     void SetGlyphPointsNumber(QString glyphName,int pointsNumber);
 
@@ -433,7 +430,7 @@ public:
      */
     void CalculateQCriterion(QString actorName);
 
-
+    /*********流线****/
     /**
      * @brief AddStreamTracer，添加流线actor
      * @param QString derivedActor，指定操作对象
@@ -444,40 +441,49 @@ public:
 
     /**
      * @brief SetStreamTracerRatio，设置采样点比率和最大采样点个数
-     * @param streamTraceActor
-     * @param pointRatio，采样点比率
-     * @param maxPointNum，采样点最大个数
+     * @param QString streamTraceActor，流线actor名字
+     * @param int pointRatio，采样点比率
+     * @param int maxPointNum，采样点最大个数
      * @return 如果这个actor不是流线actor则返回fasle，否则true
      */
     bool SetStreamTracerRatio(QString streamTraceActor,int pointRatio,int maxPointNum);
 
     /**
      * @brief SetStreamTracerDiretion，设置流线积分方向
-     * @param streamTraceActor
+     * @param QString streamTraceActor，流线actor名字
      * @param int flag，flag为-1则负方向积分，0双向积分，1正向积分。
      * @return 如果这个actor不是流线actor则返回fasle，如果flag是-1、0、1以外的数字返回false，否则true
      */
     bool SetStreamTracerDiretion(QString streamTraceActor,int flag);
 
     /**
-     * @brief SetStreamTracerMaximumPropagation最大传播步数
-     * @param streamTraceActor
-     * @param maxPropagation
+     * @brief SetStreamTracerMaximumPropagation最大传播距离
+     * @param QString streamTraceActor，流线actor名字
+     * @param double maxPropagation,最大传播距离
      * @return 如果这个actor不是流线actor则返回fasle，否则true
      */
-    bool SetStreamTracerMaximumPropagation(QString streamTraceActor,double maxPropagation);//最大传播步数
+    bool SetStreamTracerMaximumPropagation(QString streamTraceActor,double maxPropagation);
+
+    /**
+     * @brief SetStreamTracerMaximumNumberOfSteps流线的最大步数
+     * @param QString streamTraceActor，流线actor名字
+     * @param int maxNumberOfSteps，流线可以前进的最大步数
+     * @return 如果这个actor不是流线actor则返回fasle，否则true
+     */
+    bool SetStreamTracerMaximumNumberOfSteps(QString streamTraceActor,int maxNumberOfSteps);
 
     /**
      * @brief SetStreamTracerMaximumIntegrationStep
-     * @param streamTraceActor
-     * @param maxIntegrationStep
+     * @param QString streamTraceActor，流线actor名字
+     * @param double maxIntegrationStep，最大步长
      * @return 如果这个actor不是流线actor则返回fasle，否则true
      */
     bool SetStreamTracerMaximumIntegrationStep(QString streamTraceActor,double maxIntegrationStep);
+
     /**
      * @brief SetStreamTracerIntegrationStepUnit
-     * @param streamTraceActor
-     * @param unit，值LENGTH_UNIT (1)积分步长以长度单位（如米、毫米等）表示。
+     * @param QString streamTraceActor，流线actor名字
+     * @param int unit，值LENGTH_UNIT (1)积分步长以长度单位（如米、毫米等）表示。
      * CELL_LENGTH_UNIT (2)积分步长基于网格单元的长度。
      * @return 如果这个actor不是流线actor则返回fasle，如果unit不是1或2返回false，否则true
      * @details 步长单位The valid unit is now limited to only LENGTH_UNIT (1) and CELL_LENGTH_UNIT (2), EXCLUDING the previously-supported TIME_UNIT.
@@ -503,7 +509,6 @@ private:
     std::map<std::string,vtkSmartPointer<vtkLookupTable> > m_lutsList;
     std::map<std::string,vtkScalarBarActor*> m_barsList;
     std::map<std::string,bool> m_barsStatus;
-    //std::map<std::string,vtkSmartPointer<vtkContour> > contoursList;
     std::map<std::string,Contour*> m_contoursList;
     std::map<std::string,Glyph*> m_glyphsList;
     std::map<std::string,vtkSmartPointer<vtkImplicitPlaneWidget2> > m_sliceWigetList;

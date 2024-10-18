@@ -34,7 +34,7 @@ vtkFiltersExtraction-8.2d.lib\
 vtkFiltersFlowPaths-8.2d.lib\
 vtkFiltersGeneral-8.2d.lib\
 vtkFiltersGeneric-8.2d.lib\
-#vtkFiltersGeometry-8.2d.lib\
+vtkFiltersGeometry-8.2d.lib\
 #vtkFiltersHybrid-8.2d.lib\
 #vtkFiltersHyperTree-8.2d.lib\
 #vtkFiltersImaging-8.2d.lib\
@@ -161,7 +161,7 @@ vtkFiltersExtraction-8.2.lib\
 vtkFiltersFlowPaths-8.2.lib\
 vtkFiltersGeneral-8.2.lib\
 vtkFiltersGeneric-8.2.lib\
-#vtkFiltersGeometry-8.2.lib\
+vtkFiltersGeometry-8.2.lib\
 #vtkFiltersHybrid-8.2.lib\
 #vtkFiltersHyperTree-8.2.lib\
 #vtkFiltersImaging-8.2.lib\

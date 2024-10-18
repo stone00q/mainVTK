@@ -52,7 +52,7 @@ private slots:
      * @memberof Widget
      */
     void closeColorMapButton_clicked();
-
+    void setDeflectionButton_clicked();
     void handleSurfIdPicked(int surId)
     {
         qInfo()<< "emit信号接收：surfid "<<surId;
