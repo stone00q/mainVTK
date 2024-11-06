@@ -23,6 +23,7 @@
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
 #include <vtkSmartPointer.h>
+#include <vtkDataSet.h>
 #include <vtkDataSetMapper.h>
 #include <vtkActor.h>
 #include <vtkRenderer.h>

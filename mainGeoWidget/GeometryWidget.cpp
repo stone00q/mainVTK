@@ -135,6 +135,77 @@ void HighlightInteractorStyle::OnLeftButtonDown()
     this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->AddActor(displayActor);
     vtkInteractorStyleTrackballCamera::OnLeftButtonDown();  //事件转发
 }
+void HighlightInteractorStyle::OnRightButtonDown()
+{
+
+    //检查鼠标位置，如果位置在cell外就不弹出菜单
+    //鼠标点击位置[x, y]   this->Picker = vtkCellPicker::SafeDownCast(this->GetInteractor()->GetPicker());
+    int* clickPos = this->Interactor->GetEventPosition();
+
+    // 进行point拾取
+    auto picker = this->Interactor->GetPicker();
+    picker->Pick(clickPos[0], clickPos[1], 0, this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
+
+    // 获取拾取到的cell ID及其surfid
+    auto cellPicker = vtkCellPicker::SafeDownCast(picker);
+    auto cellId = cellPicker->GetCellId();
+    if (cellId == -1)
+    {
+        vtkInteractorStyleTrackballCamera::OnRightButtonDown();
+        return;
+    }
+    auto surfIdArray = vtkIntArray::SafeDownCast(PolyData->GetCellData()->GetArray("SurfID"));
+    if (!surfIdArray)
+    {
+        cout<<"SurfID array not found!"<<endl;
+        return;
+    }
+    int pickedSurfId = surfIdArray->GetValue(cellId);
+    // 弹出菜单
+    QMenu menu;
+    QAction* action1 = menu.addAction("1");
+    QAction* action2 = menu.addAction("2");
+    QAction* action3 = menu.addAction("3");
+
+    QAction* selectedAction = menu.exec(QCursor::pos());
+    if (selectedAction == nullptr) return;// 用户没有选择菜单项，菜单会自动关闭
+    // 选择菜单后，根据菜单选项设置属性
+    int propertyValue = 0;
+    if (selectedAction == action1) propertyValue = 1;
+    else if (selectedAction == action2) propertyValue = 2;
+    else if (selectedAction == action3) propertyValue = 3;
+
+    // 获取或创建 "property" 数组
+    vtkSmartPointer<vtkIntArray> propertyArray = vtkIntArray::SafeDownCast(PolyData->GetCellData()->GetArray("property"));
+    if (!propertyArray) {
+        propertyArray = vtkSmartPointer<vtkIntArray>::New();
+        propertyArray->SetName("property");
+        propertyArray->SetNumberOfComponents(1);
+        propertyArray->SetNumberOfTuples(PolyData->GetNumberOfCells());
+        propertyArray->Fill(0);
+        PolyData->GetCellData()->AddArray(propertyArray);
+    }
+
+    // 遍历所有 cells，检查 SurfID，并设置 property
+    for (vtkIdType i = 0; i < PolyData->GetNumberOfCells(); ++i) {
+        int currentSurfId = surfIdArray->GetValue(i);
+        if (currentSurfId == pickedSurfId) { // 比较目标 SurfID
+            propertyArray->SetValue(i, propertyValue); // 设置对应的 property 值
+            //qInfo()<<propertyArray->GetValue(i);
+        }
+    }
+    qInfo()<<"cell个数"<<PolyData->GetNumberOfCells();
+    for (vtkIdType i = 0; i < PolyData->GetNumberOfCells(); ++i) {
+        std::cout<<propertyArray->GetValue(i)<<" ";
+    }
+    std::cout<<endl;
+    // 刷新显示
+    //displayMapper->SetInputConnection(threshold->GetOutputPort());
+    //displayMapper->Update();
+    //this->Interactor->Render();
+
+
+}
 void HighlightInteractorStyle::OnKeyPress()
 {
     // 获取按下的键

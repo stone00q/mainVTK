@@ -13,7 +13,7 @@ Widget::Widget(QWidget *parent)
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->addWidget(m_geometryWidget);
     //设置读取文件路径
-    m_geometryWidget->SetInputData(R"(D:\Project\VTK_QT\data\blade_compressor(1).iges)");
+    m_geometryWidget->SetInputData(R"(D:\Project\VTK_QT\data\f6_clean_dpwII_v2_whole_cf2 v3.step)");
     //按钮绑定高亮交互功能，在槽函数里调用class GeometryWidget的成员函数void EnableHighlightMode()
     QPushButton* highlightButton = new QPushButton("高亮交互",this);
     layout->addWidget(highlightButton);

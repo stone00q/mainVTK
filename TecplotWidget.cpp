@@ -1,5 +1,5 @@
 #include "TecplotWidget.h"
-
+#include<vtkPSphereSource.h>
 TecplotWidget::TecplotWidget(QWidget *parent)
     :QVTKOpenGLNativeWidget(parent)
 {
@@ -391,15 +391,6 @@ QString TecplotWidget::AddContour(QString contourDerivedActor)
     this->m_contoursList[contourName] = contour; //一个名字contourname对应一个vtkcontour指针去管理
     std::string derivedName = contourDerivedActor.toStdString();
     contour->Initialize(contourName,derivedName,this->m_actorsList,this->m_renderer);
-    //此时，actorslist里添加了这个contourname对应的actor
-    //test输出
-    //auto testActor=m_actorsList[contourName];
-    //auto testData = testActor->GetMapper()->GetInput()->GetPointData();
-    //qInfo()<<"当actor加入actorlist后，其属性列表有"<<endl;
-    //for(int i = 0 ;i<testData->GetNumberOfArrays();i++)
-    //{
-    //    qInfo()<<testData->GetArrayName(i)<<endl;
-    //}
     this->m_actorsStatus[contourName] = true;
     QString name = QString::fromStdString(contourName);
     return name;
@@ -589,13 +580,26 @@ QString TecplotWidget::AddStreamTracer(QString derivedActor)
     }
     data->GetPointData()->AddArray(projectedVelocity);
     data->GetPointData()->SetActiveVectors("projectedVelocity");
+    //polyData->GetPointData()->AddArray(normals);
     vtkSmartPointer<vtkMaskPoints> maskPoints = vtkSmartPointer<vtkMaskPoints>::New();
     this->m_streamTraceMaskPointsList[name] =maskPoints;
     maskPoints->SetInputData(data);
     maskPoints->SetOnRatio(100); // Select every 10th point
     maskPoints->RandomModeOn(); // Enable random selection
-    maskPoints->SetMaximumNumberOfPoints(100000); // Set maximum number of seed points
+    maskPoints->SetMaximumNumberOfPoints(1000); // Set maximum number of seed points
     maskPoints->Update();
+    //test 流线源点
+    //auto sphereSource=vtkSmartPointer<vtkSphereSource>::New();
+    //sphereSource->SetRadius(0.0005);
+    //sphereSource->Update();
+    //auto sourceGlyph=vtkSmartPointer<vtkGlyph3D>::New();
+    //sourceGlyph->SetInputConnection(maskPoints->GetOutputPort());
+    //sourceGlyph->SetSourceConnection(sphereSource->GetOutputPort());
+    //auto sphereMapper=vtkSmartPointer<vtkPolyDataMappeer>::New();
+    //sphereMapper->SetInputConnection(sourceGlyph->GetOutputPort());
+    //auto sphereActor=vtkSmartPointer<vtkActor>::New();
+    //sphereActor->SetMapper(sphereMapper);
+    //this->m_renderer->AddActor(sphereActor);
     vtkSmartPointer<vtkStreamTracer> streamTracer = vtkSmartPointer<vtkStreamTracer>::New();
     this->m_streamTraceList[name]=streamTracer;
     streamTracer->SetInputData(data); // 使用计算过的 PolyData 作为输入
@@ -610,6 +614,26 @@ QString TecplotWidget::AddStreamTracer(QString derivedActor)
     streamlineMapper->SetInputConnection(streamTracer->GetOutputPort());
     vtkSmartPointer<vtkActor> streamlineActor = vtkSmartPointer<vtkActor>::New();
     streamlineActor->SetMapper(streamlineMapper);
+    //streamlineActor->GetProperty()->BackfaceCullingOff();
+    streamlineActor->GetProperty()->LightingOff();
+
+
+    //test propertylist
+    auto streamData =streamTracer->GetOutput()->GetPointData();
+    int tmp=streamData->GetNumberOfArrays();
+    qInfo()<<"streamData num of pointdata array"<<tmp;
+    qInfo()<<"array name:";
+    for(int i =0;i<tmp;i++)
+    {
+        qInfo()<<streamData->GetArrayName(i);
+    }
+
+    //test z-fighting问题
+    //streamlineActor->GetProperty()->SetLineWidth(3.0);
+    //streamlineActor->GetProperty()->SetColor(1,0,0);  //？？还是有一部分是黑色的
+    streamlineMapper->SetResolveCoincidentTopologyToPolygonOffset();
+    //streamlineMapper->SetRelativeCoincidentTopologyPolygonOffsetParameters(2.0,1);//z-fighting没用
+    streamlineMapper->ScalarVisibilityOff(); //？？不关闭颜色映射的时候是：蓝色+黑色，关闭了流线是白色+黑色
     this->m_renderer->AddActor(streamlineActor);
     this->m_actorsList[name]= streamlineActor;
     this->m_actorsStatus[name]=true;
@@ -879,6 +903,7 @@ void Contour::Initialize(std::string contourName, std::string derivedName, std::
     //filter连接mapper、actor
     vtkSmartPointer<vtkPolyDataMapper> contourMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     contourMapper->SetInputConnection(this->m_contourFilter->GetOutputPort());
+    contourMapper->ScalarVisibilityOff();
     vtkSmartPointer<vtkActor> contourActor = vtkSmartPointer<vtkActor>::New();
     contourActor->SetMapper(contourMapper);
     actorsList[contourName] = contourActor;
@@ -1085,7 +1110,7 @@ void TecplotReader::cellsReader(const std::string& cellType, const std::string& 
  *****************************数据读入tecplotreader具体实现********************************
  ***************************************************************************************/
 vtkMultiBlockDataSet* TecplotReader::ReadTecplotData(const std::string &fileName) {
-    clock_t start_time = clock();
+    //clock_t start_time = clock();
 
     std::ifstream file(fileName);
     std::string line;
@@ -1285,7 +1310,7 @@ vtkMultiBlockDataSet* TecplotReader::ReadTecplotData(const std::string &fileName
         multiBlock->GetMetaData(zoneId)->Set(vtkCompositeDataSet::NAME(), zoneTitle[zoneId]);
     }
 
-    clock_t end_time = clock();
+    //clock_t end_time = clock();
     //std::cout << "" << (end_time - start_time) / (double)CLOCKS_PER_SEC << "s" << std::endl;
 
     return multiBlock;

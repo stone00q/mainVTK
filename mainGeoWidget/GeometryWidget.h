@@ -8,6 +8,9 @@
 #define GEOMETRYWIDGET_H
 
 #include <QWidget>
+#include <QMenu>
+#include <QCursor>
+#include <QDebug>
 
 #include <vtkGenericOpenGLRenderWindow.h>
 #include <QVTKOpenGLNativeWidget.h>
@@ -19,9 +22,12 @@
 #include <vtkCompositePolyDataMapper.h>
 #include <vtkMultiBlockDataSet.h>
 #include <vtkPolyData.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkDataArray.h>
 #include <vtkCellData.h>
+#include <vtkDataSet.h>
+#include <vtkIntArray.h>
 
 #include <vtkProperty.h>
 #include <vtkLookupTable.h>
@@ -47,7 +53,7 @@
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 VTK_MODULE_INIT(vtkInteractionStyle);
 
-
+#include <iostream>
 class GeometryWidget;
 class HighlightInteractorStyle : public vtkInteractorStyleTrackballCamera
 {
@@ -57,6 +63,7 @@ public:
 
     HighlightInteractorStyle();
     virtual void OnLeftButtonDown() override;
+    virtual void OnRightButtonDown() override;
     virtual void OnKeyPress() override;
     void SetInput(vtkSmartPointer<vtkPolyData> data,GeometryWidget* widget);
 private:
