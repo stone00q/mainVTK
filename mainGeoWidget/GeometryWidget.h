@@ -3,7 +3,6 @@
  * @brief   stp、step和iges文件的读入和显示
  * @details 主要接口函数即使用都在该文件中
 */
-
 #ifndef GEOMETRYWIDGET_H
 #define GEOMETRYWIDGET_H
 
@@ -17,6 +16,9 @@
 #include <ctime>
 #include <vtkOCCTReader.h>
 
+#include <vtkAppendPolyData.h>
+#include <vtkAppendFilter.h>
+#include <vtkGeometryFilter.h>
 #include <vtkSmartPointer.h>
 #include <vtkNew.h>
 #include <vtkCompositePolyDataMapper.h>
@@ -63,9 +65,10 @@ public:
 
     HighlightInteractorStyle();
     virtual void OnLeftButtonDown() override;
-    virtual void OnRightButtonDown() override;
+    //virtual void OnRightButtonDown() override;
     virtual void OnKeyPress() override;
     void SetInput(vtkSmartPointer<vtkPolyData> data,GeometryWidget* widget);
+    std::set<int> GetSelectedSurfIds();
 private:
     vtkSmartPointer<vtkPolyData> PolyData;
     vtkSmartPointer<vtkDataSetMapper> displayMapper;
@@ -73,6 +76,10 @@ private:
     vtkSmartPointer<vtkThreshold> threshold;
     vtkSmartPointer<vtkInteractorStyleTrackballCamera> defaultStyle;
     GeometryWidget* geoWidget = nullptr;
+    std::set<int> selectedSurfIds;
+    unsigned int NumberOfClicks;
+    int PreviousPosition[2];
+    int ResetPixelDistance;
 };
 
 /**
@@ -80,7 +87,7 @@ private:
  * @brief stp、step和iges文件的读入显示
  * @details 能够读取stp、step、iges数据并显示，可以开启或关闭根据所在面ID进行的颜色映射，能够鼠标左键选中面高亮显示
  */
-class GeometryWidget:public QVTKOpenGLNativeWidget
+class GeometryWidget : public QVTKOpenGLNativeWidget
 {
     Q_OBJECT
 public:
@@ -114,6 +121,11 @@ public:
      */
     void SetColorMapVisibility(bool flag = true, QString propName = "SurfID");
 
+    /**
+     * @brief GetSelectedSurfIds，获取当前选中的所有面id
+     * @return set<int>，面id集合
+     */
+    std::set<int> GetSelectedSurfIds();
 signals:
     /**
      * @brief SurfIdPicked
@@ -134,6 +146,7 @@ private:
     vtkSmartPointer<vtkCellPicker> cellPicker;
     vtkSmartPointer<vtkInteractorStyleTrackballCamera> defaultStyle;
     bool hasData = false;
+
 };
 
 #endif // GEOMETRYWIDGET_H

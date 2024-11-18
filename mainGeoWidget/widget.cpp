@@ -1,6 +1,5 @@
 #include "widget.h"
 #include "ui_widget.h"
-
 #include <qgridlayout.h>
 #include <qpushbutton.h>
 Widget::Widget(QWidget *parent)
@@ -31,13 +30,16 @@ Widget::Widget(QWidget *parent)
     QPushButton* setDeflectionButton=new QPushButton("linearDeflection=0.01,angularDeflection= 0.05",this);
     layout->addWidget(setDeflectionButton);
     connect(setDeflectionButton,&QPushButton::clicked,this,&Widget::setDeflectionButton_clicked);
+
+    QPushButton* selectedId=new QPushButton("查看当前id",this);
+    layout->addWidget(selectedId);
+    connect(selectedId,&QPushButton::clicked,this,&Widget::selectedId_clicked);
 }
 
 Widget::~Widget()
 {
     delete ui;
 }
-
 
 void Widget::highlightButton_clicked()
 {
@@ -54,4 +56,13 @@ void Widget::closeColorMapButton_clicked()
 void Widget::setDeflectionButton_clicked()
 {
     m_geometryWidget->SetDeflection();
+}
+void Widget::selectedId_clicked()
+{
+    auto ids=m_geometryWidget->GetSelectedSurfIds();
+    qInfo()<<"\n now these ids are selected:";
+    for(int i:ids)
+    {
+        qInfo()<<" "<<i;
+    }
 }

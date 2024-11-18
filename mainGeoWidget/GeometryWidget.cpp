@@ -9,7 +9,7 @@ GeometryWidget::GeometryWidget(QWidget *parent)
     this->renderer = vtkSmartPointer<vtkRenderer>::New();
     this->renderWindow = vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     this->renderWindow->AddRenderer(renderer);
-    this->SetRenderWindow(renderWindow);
+    this->setRenderWindow(renderWindow);
 
     this->mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     this->actor = vtkSmartPointer<vtkActor>::New();
@@ -18,7 +18,7 @@ GeometryWidget::GeometryWidget(QWidget *parent)
     this->defaultStyle = vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
     this->cellPicker=vtkSmartPointer<vtkCellPicker>::New();
     //获取交互器
-    this->qvtkInteractor = this->GetInteractor();
+    this->qvtkInteractor = this->interactor();
     this->qvtkInteractor->SetInteractorStyle(this->defaultStyle);
     this->qvtkInteractor->SetPicker(this->cellPicker);
     QColor lightBlue(82, 87, 110);
@@ -92,6 +92,10 @@ void GeometryWidget::EnableHighlightMode()
     this->qvtkInteractor->SetInteractorStyle(this->highlightStyle);
     this->qvtkInteractor->Initialize();
 }
+std::set<int> GeometryWidget::GetSelectedSurfIds()
+{
+    return this->highlightStyle->GetSelectedSurfIds();
+}
 HighlightInteractorStyle::HighlightInteractorStyle()
 {
     this->defaultStyle = vtkSmartPointer< vtkInteractorStyleTrackballCamera>::New();
@@ -101,9 +105,20 @@ HighlightInteractorStyle::HighlightInteractorStyle()
     this->displayActor = vtkSmartPointer<vtkActor>::New();
     this->displayActor->SetMapper(displayMapper);
     this->displayActor->GetProperty()->SetColor(1.0,0, 1);  // Highlighted color
+
+    //this->lastClickWasBlank=false;
+    //??this->lastClickTime=nullptr;
+    this->NumberOfClicks=0;
+    this->ResetPixelDistance=5;
+    this->PreviousPosition[0]=0;
+    this->PreviousPosition[1]=0;
 }
+
 void HighlightInteractorStyle::OnLeftButtonDown()
 {
+    //逻辑上，每次鼠标左键点击会拾取cellid并获得这个cell的surfid，然后发送surfid。
+    //发送完检查是否按住了ctrl键，如果没按住就清空surfid的队列，即之前选中的id
+    //将surid队列中的每个面去threshold抽出来用appendfilter连接成一个polydata去渲染
     //鼠标点击位置[x, y]   this->Picker = vtkCellPicker::SafeDownCast(this->GetInteractor()->GetPicker());
     int* clickPos = this->Interactor->GetEventPosition();
 
@@ -115,6 +130,27 @@ void HighlightInteractorStyle::OnLeftButtonDown()
     auto cellPicker = vtkCellPicker::SafeDownCast(picker);
     auto cellId = cellPicker->GetCellId();
     if (cellId == -1) {
+        this->NumberOfClicks++;
+        int pickPostion[2];
+        pickPostion[0]=clickPos[0];
+        pickPostion[1]=clickPos[1];
+        int xdist=pickPostion[0]-this->PreviousPosition[0];
+        int ydist=pickPostion[1]-this->PreviousPosition[1];
+        this->PreviousPosition[0]=pickPostion[0];
+        this->PreviousPosition[1]=pickPostion[1];
+
+        int moveDistance=(int)sqrt((double)(xdist*xdist+ydist*ydist));
+        if(moveDistance>this->ResetPixelDistance)
+        {
+            this->NumberOfClicks=1;
+        }
+        if(this->NumberOfClicks==2)
+        {
+            this->NumberOfClicks=0;
+            selectedSurfIds.clear();
+            this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->RemoveActor(displayActor);
+            this->Interactor->GetRenderWindow()->Render();
+        }
         vtkInteractorStyleTrackballCamera::OnLeftButtonDown();
         return;
     }
@@ -127,84 +163,42 @@ void HighlightInteractorStyle::OnLeftButtonDown()
     int pickedSurfId = surfIdArray->GetValue(cellId);
     //std::cout << "SurfID: " << pickedSurfId << std::endl;
     emit this->geoWidget->SurfIdPicked(pickedSurfId);
+
+    //检查是否按下ctrl键
+    bool ctrlPressed=this->Interactor->GetControlKey();
+    if (selectedSurfIds.find(pickedSurfId)!=selectedSurfIds.end())
+    {
+        // 取消该面的高亮
+        selectedSurfIds.erase(pickedSurfId);
+    } else
+    {
+        if (!ctrlPressed) selectedSurfIds.clear(); //非多选模式
+        selectedSurfIds.insert(pickedSurfId);
+    }
+    if(selectedSurfIds.empty())
+    {
+        this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->RemoveActor(displayActor);
+        this->Interactor->GetRenderWindow()->Render();
+        vtkInteractorStyleTrackballCamera::OnLeftButtonDown();  //事件转发
+        return;
+    }
     //下面开始提取相同surfid的cell
-    threshold->ThresholdBetween(pickedSurfId, pickedSurfId);
-    threshold->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "SurfID");
-    threshold->Update();
-    displayMapper->SetInputConnection(threshold->GetOutputPort());
+    vtkSmartPointer<vtkAppendPolyData> appendFilter = vtkSmartPointer<vtkAppendPolyData>::New();
+    for (int surfId : selectedSurfIds) {
+        threshold->SetInputArrayToProcess(0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_CELLS, "SurfID");
+        threshold->SetLowerThreshold(surfId);
+        threshold->SetUpperThreshold(surfId);
+        threshold->Update();
+        vtkSmartPointer<vtkGeometryFilter> geometryFilter = vtkSmartPointer<vtkGeometryFilter>::New();
+        geometryFilter->SetInputData(threshold->GetOutput());
+        geometryFilter->Update();
+
+        appendFilter->AddInputData(geometryFilter->GetOutput());
+    }
+    appendFilter->Update();
+    displayMapper->SetInputConnection(appendFilter->GetOutputPort());
     this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->AddActor(displayActor);
     vtkInteractorStyleTrackballCamera::OnLeftButtonDown();  //事件转发
-}
-void HighlightInteractorStyle::OnRightButtonDown()
-{
-
-    //检查鼠标位置，如果位置在cell外就不弹出菜单
-    //鼠标点击位置[x, y]   this->Picker = vtkCellPicker::SafeDownCast(this->GetInteractor()->GetPicker());
-    int* clickPos = this->Interactor->GetEventPosition();
-
-    // 进行point拾取
-    auto picker = this->Interactor->GetPicker();
-    picker->Pick(clickPos[0], clickPos[1], 0, this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer());
-
-    // 获取拾取到的cell ID及其surfid
-    auto cellPicker = vtkCellPicker::SafeDownCast(picker);
-    auto cellId = cellPicker->GetCellId();
-    if (cellId == -1)
-    {
-        vtkInteractorStyleTrackballCamera::OnRightButtonDown();
-        return;
-    }
-    auto surfIdArray = vtkIntArray::SafeDownCast(PolyData->GetCellData()->GetArray("SurfID"));
-    if (!surfIdArray)
-    {
-        cout<<"SurfID array not found!"<<endl;
-        return;
-    }
-    int pickedSurfId = surfIdArray->GetValue(cellId);
-    // 弹出菜单
-    QMenu menu;
-    QAction* action1 = menu.addAction("1");
-    QAction* action2 = menu.addAction("2");
-    QAction* action3 = menu.addAction("3");
-
-    QAction* selectedAction = menu.exec(QCursor::pos());
-    if (selectedAction == nullptr) return;// 用户没有选择菜单项，菜单会自动关闭
-    // 选择菜单后，根据菜单选项设置属性
-    int propertyValue = 0;
-    if (selectedAction == action1) propertyValue = 1;
-    else if (selectedAction == action2) propertyValue = 2;
-    else if (selectedAction == action3) propertyValue = 3;
-
-    // 获取或创建 "property" 数组
-    vtkSmartPointer<vtkIntArray> propertyArray = vtkIntArray::SafeDownCast(PolyData->GetCellData()->GetArray("property"));
-    if (!propertyArray) {
-        propertyArray = vtkSmartPointer<vtkIntArray>::New();
-        propertyArray->SetName("property");
-        propertyArray->SetNumberOfComponents(1);
-        propertyArray->SetNumberOfTuples(PolyData->GetNumberOfCells());
-        propertyArray->Fill(0);
-        PolyData->GetCellData()->AddArray(propertyArray);
-    }
-
-    // 遍历所有 cells，检查 SurfID，并设置 property
-    for (vtkIdType i = 0; i < PolyData->GetNumberOfCells(); ++i) {
-        int currentSurfId = surfIdArray->GetValue(i);
-        if (currentSurfId == pickedSurfId) { // 比较目标 SurfID
-            propertyArray->SetValue(i, propertyValue); // 设置对应的 property 值
-            //qInfo()<<propertyArray->GetValue(i);
-        }
-    }
-    qInfo()<<"cell个数"<<PolyData->GetNumberOfCells();
-    for (vtkIdType i = 0; i < PolyData->GetNumberOfCells(); ++i) {
-        std::cout<<propertyArray->GetValue(i)<<" ";
-    }
-    std::cout<<endl;
-    // 刷新显示
-    //displayMapper->SetInputConnection(threshold->GetOutputPort());
-    //displayMapper->Update();
-    //this->Interactor->Render();
-
-
 }
 void HighlightInteractorStyle::OnKeyPress()
 {
@@ -216,6 +210,9 @@ void HighlightInteractorStyle::OnKeyPress()
         // 调用 InteractionManager 退出高亮模式
         if (this->Interactor)
         {
+            this->selectedSurfIds.clear();
+            this->Interactor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->RemoveActor(displayActor);
+            this->Interactor->GetRenderWindow()->Render();
             this->Interactor->SetInteractorStyle(defaultStyle);
         }
     }
@@ -228,3 +225,8 @@ void HighlightInteractorStyle::SetInput(vtkSmartPointer<vtkPolyData> data,Geomet
     threshold->SetInputData(PolyData);
     geoWidget = widget;
 }
+std::set<int> HighlightInteractorStyle::GetSelectedSurfIds()
+{
+    return selectedSurfIds;
+}
+
